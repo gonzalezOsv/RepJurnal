@@ -1,0 +1,174 @@
+{% extends "layout_user.html" %}
+
+{% block title %}Workout Statistics - My Fitness Tracker{% endblock %}
+
+{% block content %}
+<main class="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
+  <div class="container mx-auto px-4 py-8">
+    <!-- Theme Toggle Button -->
+    <div class="flex justify-end mb-4">
+      <button id="theme-toggle" class="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-200">
+        <!-- Sun/Moon icons (unchanged) -->
+      </button>
+    </div>
+
+    <!-- Header Section -->
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold text-gray-800 dark:text-white text-center mb-2">Workout Progress</h1>
+      <p class="text-gray-600 dark:text-gray-400 text-center">Track your strength gains and achieve your goals.</p>
+    </div>
+
+    <!-- Progress Navigation Tabs -->
+    <div class="mb-8">
+      <nav class="flex flex-wrap justify-center space-x-2">
+        <button class="tab-button active px-6 py-3 text-sm font-medium rounded-lg transition-colors duration-200" data-tab="main-lifts">
+          Main Lifts
+        </button>
+        <button class="tab-button px-6 py-3 text-sm font-medium rounded-lg transition-colors duration-200" id="analyticsButton" data-tab="analytics">
+          Analytics
+        </button>
+        <button class="tab-button px-6 py-3 text-sm font-medium rounded-lg transition-colors duration-200" data-tab="records">
+          Records
+        </button>
+      </nav>
+    </div>
+
+    <!-- Main Lifts Tab Content -->
+    <div id="main-lifts" class="tab-content active">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Bench Press Chart -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-300">
+          <div class="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800 rounded-t-xl p-3">
+            <h3 class="text-white text-lg font-semibold text-center">Bench Press</h3>
+          </div>
+          <div class="p-4">
+            <canvas id="benchPressChart" height="250"></canvas>
+          </div>
+        </div>
+
+        <!-- Squat Chart -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-300">
+          <div class="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800 rounded-t-xl p-3">
+            <h3 class="text-white text-lg font-semibold text-center">Squat</h3>
+          </div>
+          <div class="p-4">
+            <canvas id="squatChart" height="250"></canvas>
+          </div>
+        </div>
+
+        <!-- Deadlift Chart -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-300">
+          <div class="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800 rounded-t-xl p-3">
+            <h3 class="text-white text-lg font-semibold text-center">Deadlift</h3>
+          </div>
+          <div class="p-4">
+            <canvas id="deadliftChart" height="250"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Analytics Tab Content -->
+<div id="analytics" class="tab-content hidden">
+  <div class="grid grid-cols-1 gap-6">
+    <!-- Volume Trend Chart -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+      <h3 class="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Volume Trend</h3>
+      <canvas id="volumeTrendChart" height="250"></canvas>
+    </div>
+
+    <!-- Consistency Chart -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+      <h3 class="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Consistency</h3>
+      <canvas id="consistencyChart" height="250"></canvas>
+    </div>
+
+    <!-- Body Part Imbalance Chart -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+      <h3 class="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Body Part Imbalance</h3>
+      <canvas id="imbalanceChart" height="250"></canvas>
+    </div>
+  </div>
+</div>
+
+
+    <!-- Records Tab Content -->
+    <div id="records" class="tab-content hidden">
+      <div class="max-w-4xl mx-auto">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Personal Records -->
+          <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+            <h3 class="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">1RM Records</h3>
+            <div class="space-y-4" id="oneRmRecords"></div>
+          </div>
+
+          <!-- Volume Records -->
+          <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+            <h3 class="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Volume Records</h3>
+            <div class="space-y-4" id="volumeRecords"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='viewProgress.js') }}"></script>
+<!-- <script>
+  document.addEventListener("DOMContentLoaded", () => {
+    // Fetch and render data for consistency
+    $.get('/api/consistency/', (data) => {
+      const ctx = document.getElementById('consistencyChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['Streak', 'Workouts'],
+          datasets: [{
+            label: 'Count',
+            data: [data.streak, data.workout_count],
+            backgroundColor: ['#4caf50', '#2196f3']
+          }]
+        }
+      });
+    });
+
+    // Fetch and render volume trend
+    $.get('/api/volume-trend/', (data) => {
+      const ctx = document.getElementById('volumeTrendChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: data.weeks,
+          datasets: [{
+            label: 'Volume',
+            data: data.volumes,
+            borderColor: '#673ab7',
+            fill: false
+          }]
+        }
+      });
+    });
+
+    // Fetch and render body part imbalance
+    $.get('/api/body-part-imbalance/', (data) => {
+      const ctx = document.getElementById('imbalanceChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'pie',
+        data: {
+          labels: Object.keys(data),
+          datasets: [{
+            label: 'Percentage',
+            data: Object.values(data),
+            backgroundColor: ['#ff5722', '#4caf50', '#2196f3', '#ffc107', '#673ab7']
+          }]
+        }
+      });
+    });
+  });
+</script> -->
+{% endblock %}

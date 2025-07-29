@@ -1,0 +1,30 @@
+version: "3.9"
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    depends_on:
+      - db
+    environment:
+      - SECRET_KEY=your_very_secret_key  # Use environment variables for secrets
+      - SQLALCHEMY_DATABASE_URI=mysql+pymysql://flaskuser:flaskpassword@db/fitness_tracker
+    volumes:
+      - .:/app  # Mount current directory to the container's /app directory (for code persistence)
+      
+  db:
+    image: mariadb:latest
+    container_name: mariadb-container
+    environment:
+      MYSQL_ROOT_PASSWORD: my-secret-pw  # Root password for MariaDB
+      MYSQL_DATABASE: fitness_tracker   # The database to create for your app
+      MYSQL_USER: flaskuser             # The user you will use to connect
+      MYSQL_PASSWORD: flaskpassword     # The user's password
+    ports:
+      - "3306:3306"  # Exposing MariaDB port to the host
+    volumes:
+      - mariadb_data:/var/lib/mysql  # Persist MariaDB data
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql  # Mount the SQL initialization script
+
+volumes:
+  mariadb_data:

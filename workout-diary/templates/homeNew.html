@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <style>
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+            100% { transform: translateY(0px); }
+        }
+        .float-animation {
+            animation: float 6s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-50 to-gray-100">
+
+
+    <script>
+        gsap.from('.float-animation', {
+            y: 30,
+            opacity: 0,
+            duration: 1,
+            ease: "power2.out"
+        });
+        
+        gsap.from('.feature', {
+            y: 50,
+            opacity: 0,
+            duration: 0.8,
+            stagger: 0.2,
+            ease: "power2.out",
+            scrollTrigger: {
+                trigger: '.feature',
+                start: "top 80%"
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}My Flask App{% endblock %}</title>
+
+    <!-- Global Styles (Custom CSS) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+
+    <!-- Tailwind CSS (via CDN) for styling -->
+    <script src="https://cdn.tailwindcss.com"></script> <!-- Tailwind CDN -->
+
+    <!-- Additional Fonts (Google Fonts) -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+</head>
+
+<body class="font-sans bg-gray-100">
+
+    <!-- Main content area -->
+    <div class="min-h-screen flex flex-col">
+        {% block content %}
+        {% endblock %}
+    </div>
+
+  <!-- Footer -->
+  <footer class="bg-gray-800 text-white py-6 text-center mt-16">
+    <p class="text-sm">© 2025 RepJurney Fitness Diary. All rights reserved.</p>
+  </footer>
+
+    <!-- Load JS Files -->
+    {% block scripts %}
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> <!-- jQuery CDN -->
+        <script src="{{ url_for('static', filename='js/script.js') }}"></script> <!-- Custom JS -->
+    {% endblock %}
+
+</body>
+
+</html>

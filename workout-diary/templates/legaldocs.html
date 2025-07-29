@@ -1,0 +1,15 @@
+{# templates/legal/document.html #}
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto py-8 px-4">
+    <h1 class="text-3xl font-bold mb-8">{{ document_type }}</h1>
+    <div class="prose max-w-none">
+        {{ document.content|markdown }}
+    </div>
+    <div class="mt-4 text-sm text-gray-600">
+        Last updated: {{ document.effective_date.strftime('%B %d, %Y') }}
+        Version: {{ document.version }}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,125 @@
+
+{% extends "layout_user.html" %}
+
+{% block head %}
+    {{ super() }}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+{% endblock %}
+
+{% block content %}
+<main class="container mx-auto py-16 px-6">
+    <!-- Animated Welcome Section -->
+    <div class="text-center mb-10 animate__animated animate__fadeIn">
+        <h2 class="text-4xl font-bold mb-4 sm:text-3xl">
+            Welcome back, <span class="text-blue-600">{{ user.first_name }}</span>!
+        </h2>
+    </div>
+
+    <!-- Enhanced Date Navigation -->
+    <div class="flex justify-center items-center mb-12">
+        <div class="relative">
+            <input 
+                type="text" 
+                id="date-picker" 
+                class="bg-white text-gray-800 px-6 py-3 shadow-md border border-gray-300 text-lg font-semibold rounded-lg w-64 text-center"
+                value="{{ current_date }}"
+            >
+        </div>
+    </div>
+
+    <!-- Workouts Visualization -->
+    <div class="grid md:grid-cols-2 gap-8 mb-12">
+        <!-- Workout List -->
+        <div id="workouts-container" class="space-y-4">
+            {% if workouts_exist %}
+                {% for workout in workouts %}
+                    <div class="bg-white p-6 rounded-lg shadow-md transition hover:shadow-xl">
+                        <div class="mt-4">
+                            <table class="table-auto w-full text-left">
+                                <thead>
+                                    <tr class="bg-blue-50">
+                                        <th class="px-4 py-2">Exercise</th>
+                                        <th class="px-4 py-2">Weight</th>
+                                        <th class="px-4 py-2">Reps/Sets</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for exercise in workout_exercises[workout.workout_id] %}
+                                        <tr class="hover:bg-blue-100 transition">
+                                            <td class="border px-4 py-2">{{ exercise.exercise_name }}</td>
+                                            <td class="border px-4 py-2">{{ exercise.weight }} lbs</td>
+                                            <td class="border px-4 py-2">{{ exercise.reps }} × {{ exercise.sets }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="text-center bg-gray-100 p-8 rounded-lg">
+                    <p class="text-xl text-gray-600">No workouts logged for {{ current_date }}</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Workout Progress Chart -->
+        <div>
+            <canvas id="workout-progress-chart"></canvas>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="mt-10 flex justify-center gap-8 flex-wrap">
+        <a href="/repLog" class="btn btn-primary animate__animated animate__pulse animate__slower">Log a Workout</a>
+        <a href="/viewProgress" class="btn btn-secondary">View Progress</a>
+    </div>
+</main>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/@popperjs/core@2"></script>
+    <script src="https://unpkg.com/tippy.js@6"></script>
+    <script>
+        // Date Picker Initialization
+        flatpickr("#date-picker", {
+            dateFormat: "Y-m-d",
+            onChange: function(selectedDates, dateStr) {
+                window.location.href = `/dashboard?date=${dateStr}`;
+            }
+        });
+
+        // Workout Progress Chart
+        const ctx = document.getElementById('workout-progress-chart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: {{ chart_labels|safe }},
+                datasets: [{
+                    label: 'Total Weight Lifted',
+                    data: {{ chart_data|safe }},
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Weekly Workout Progress'
+                    }
+                }
+            }
+        });
+
+        // Tooltips
+        tippy('.btn', {
+            content: (reference) => reference.getAttribute('data-tooltip')
+        });
+    </script>
+{% endblock %}

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}RepJurney{% endblock %}</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/static/images/logo.svg">
+
+    <!-- Global Styles -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <!-- Animate.css for smooth transitions -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+
+    {% block head %}{% endblock %}
+</head>
+
+<body class="font-['Inter'] bg-gray-50 flex flex-col min-h-screen">
+    <!-- Header with improved mobile responsiveness -->
+    <header class="bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md sticky top-0 z-50">
+        <div class="container mx-auto flex justify-between items-center py-4 px-4 lg:px-6">
+            <!-- Logo Section -->
+            <div class="flex items-center space-x-3">
+                <a href="/dashboard" class="flex items-center">
+                    <img src="/static/images/logo.svg" alt="RepJurney Logo" class="h-8 w-8 mr-2">
+                    <span class="text-2xl font-bold tracking-tight">RepJurney</span>
+                </a>
+            </div>
+
+            <!-- Desktop Navigation -->
+            <nav class="hidden md:flex space-x-6 items-center">
+                <a href="/dashboard" class="hover:text-blue-200 transition-colors">Dashboard</a>
+                <a href="/repLog" class="hover:text-blue-200 transition-colors">Log Workout</a>
+                <a href="/viewProgress" class="hover:text-blue-200 transition-colors">Progress</a>
+                <a href="/account" class="hover:text-blue-200 transition-colors">Account</a>
+                <a href="/logout" class="bg-white text-blue-600 px-4 py-2 rounded-full hover:bg-blue-50 transition-colors">Logout</a>
+            </nav>
+
+            <!-- Mobile Menu Toggle -->
+            <div class="md:hidden">
+                <button id="mobileMenuToggle" class="focus:outline-none">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Mobile Slide-Out Menu -->
+    <div id="mobileMenu" class="fixed inset-0 bg-blue-600 z-40 transform -translate-x-full transition-transform duration-300 ease-in-out md:hidden">
+        <div class="flex flex-col h-full p-6">
+            <button id="closeMobileMenu" class="self-end mb-8 text-white">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+            <nav class="space-y-6 text-center">
+                <a href="/dashboard" class="block text-2xl text-white hover:text-blue-200">Dashboard</a>
+                <a href="/repLog" class="block text-2xl text-white hover:text-blue-200">Log Workout</a>
+                <a href="/viewProgress" class="block text-2xl text-white hover:text-blue-200">Progress</a>
+                <a href="/account" class="block text-2xl text-white hover:text-blue-200">Account</a>
+                <a href="/logout" class="block text-2xl text-white bg-blue-700 py-3 rounded-lg hover:bg-blue-800">Logout</a>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow container mx-auto px-4 lg:px-6 py-8">
+        {% block content %}
+        
+        {% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-6 text-center">
+        <div class="container mx-auto px-4">
+            <p class="text-sm">© 2025 RepJurney Fitness Diary. All rights reserved.</p>
+            <div class="mt-4 flex justify-center space-x-4">
+                <a href="#" class="hover:text-blue-300">Privacy Policy</a>
+                <a href="#" class="hover:text-blue-300">Terms of Service</a>
+                <a href="#" class="hover:text-blue-300">Contact</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    {% block scripts %}
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+            const closeMobileMenu = document.getElementById('closeMobileMenu');
+            const mobileMenu = document.getElementById('mobileMenu');
+
+            mobileMenuToggle.addEventListener('click', function() {
+                mobileMenu.classList.remove('-translate-x-full');
+                mobileMenu.classList.add('translate-x-0');
+            });
+
+            closeMobileMenu.addEventListener('click', function() {
+                mobileMenu.classList.remove('translate-x-0');
+                mobileMenu.classList.add('-translate-x-full');
+            });
+        });
+    </script>
+    <script src="{{ url_for('static', filename='/logout.js') }}"></script>
+    {% endblock %}
+</body>
+</html>

@@ -1,0 +1,142 @@
+{% extends "layout_user.html" %}
+
+{% block title %}Dashboard - My Flask App{% endblock %}
+
+{% block content %}
+  <!-- Main Content Area -->
+  <main class="container mx-auto py-16 px-6">
+    <!-- Welcome Section -->
+    <div class="text-center mb-10">
+        <h2 class="text-4xl font-bold mb-4 sm:text-3xl">Welcome back, <span class="text-blue-600">{{ user.first_name }}</span>!</h2>
+    </div>
+
+<!-- Quick Actions -->
+<div class="mt-10 mb-12 flex justify-center gap-8 flex-wrap items-center">
+    <a href="/repLog" class="inline-block px-8 py-4 text-lg font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl shadow-lg hover:from-blue-700 hover:to-indigo-700 transform transition hover:-translate-y-1">
+        Log a Workout
+    </a>
+    <a href="/viewProgress" class="inline-block px-8 py-4 text-lg font-semibold text-white bg-gradient-to-r from-gray-700 to-gray-900 rounded-xl shadow-lg hover:from-gray-800 hover:to-black transform transition hover:-translate-y-1">
+        View Progress
+    </a>
+</div>
+
+<!-- Date Navigator (Mobile-Friendly) -->
+<div class="flex flex-wrap justify-center items-center mb-6 sm:mb-12 space-y-4 sm:space-y-0 sm:space-x-4">
+    <div class="flex items-center space-x-1">
+        <button 
+            class="bg-gray-200 text-gray-700 px-3 sm:px-4 py-2 rounded-l-lg border-r border-gray-300 hover:bg-gray-300 transition"
+            onclick="navigateDate(-1)">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+            </svg>
+        </button>
+        <div class="bg-white text-gray-800 px-4 sm:px-6 py-2 sm:py-3 shadow-md border border-gray-300 text-base sm:text-lg font-semibold text-center w-full sm:w-auto">
+            {{ current_date }}
+        </div>
+        <button 
+            class="bg-gray-200 text-gray-700 px-3 sm:px-4 py-2 rounded-r-lg border-l border-gray-300 hover:bg-gray-300 transition"
+            onclick="navigateDate(1)">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+            </svg>
+        </button>
+    </div>
+</div>
+
+<!-- Workout List (Mobile-Friendly) -->
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <!-- Workout List Grid with improved centering -->
+    <div class="max-w-5xl mx-auto">
+        <div class="max-w-6xl mx-auto grid grid-cols-1 grid sm:gap-6 lg:gap-8 mb-12">
+            {% if workouts_exist %}
+                {% for workout in workouts %}
+                    <div class="bg-white rounded-lg shadow-md transition hover:shadow-xl overflow-hidden">
+                        <div class="bg-blue-600 text-white p-4">
+                            <!-- Header content here if needed -->
+                        </div>
+                        
+                        {% for body_part, exercises in workout_exercises[workout.workout_id].items() %}
+                            <div class="p-4 border-b last:border-b-0">
+                                <h4 class="text-base sm:text-lg font-semibold text-gray-700 mb-3">{{ body_part }}</h4>
+                                <div class="space-y-3">
+                                    {% for exercise in exercises %}
+                                        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center bg-gray-50 p-4 rounded-lg">
+                                            <div class="mb-2 sm:mb-0">
+                                                <p class="font-medium text-gray-800 text-sm sm:text-base">{{ exercise.exercise_name }}</p>
+                                            </div>
+                                            <div class="flex justify-between sm:justify-end space-x-4 text-gray-600 text-sm sm:text-base">
+                                                <span class="font-medium">{{ exercise.weight }} lbs</span>
+                                                <span class="font-medium">{{ exercise.sets }}x{{ exercise.reps }}</span>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="col-span-1 lg:col-span-2">
+                    <div class="text-center bg-gray-100 p-8 rounded-lg">
+                        <p class="text-lg sm:text-xl text-gray-600">No workouts logged for {{ current_date }}</p>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+</div>
+    <!-- Progress Snapshot -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <!-- Existing Cards -->
+        <div class="bg-white p-6 rounded-lg shadow-md text-center">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">Workouts Logged</h3>
+            <p class="text-4xl font-semibold text-blue-600">{{ workouts_this_week }}</p>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow-md text-center">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">Total Weight Lifted</h3>
+            <p class="text-4xl font-semibold text-blue-600">{{ total_weight_lifted }} lbs</p>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow-md text-center">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">Reps Performed</h3>
+            <p class="text-4xl font-semibold text-blue-600">{{ total_reps_performed }}</p>
+        </div>
+    
+        <!-- New Cards -->
+        <div class="bg-white p-6 rounded-lg shadow-md text-center">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">Max Single Lift</h3>
+            <p class="text-4xl font-semibold text-green-600">{{ max_single_lift }} lbs</p>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow-md text-center">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">Unique Exercises</h3>
+            <p class="text-4xl font-semibold text-purple-600">{{ unique_exercises_count }}</p>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow-md text-center">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">Workout Consistency</h3>
+            <p class="text-4xl font-semibold text-orange-600">{{ workout_streak }} Days</p>
+        </div>
+    </div>
+
+    <!-- Motivational Section -->
+    <div class="mt-16 bg-blue-50 p-8 rounded-lg shadow-md">
+        <p class="text-center text-xl text-gray-600">"The only bad workout is the one that didn't happen."</p>
+        <p class="text-center font-semibold mt-4 text-gray-800">- Anonymous</p>
+    </div>
+  </main>
+
+  <script>
+    function navigateDate(offset) {
+      const currentDate = new Date('{{ current_date }}');
+      currentDate.setDate(currentDate.getDate() + offset);
+      const formattedDate = currentDate.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+      window.location.href = `/dashboard?date=${formattedDate}`;
+    }
+  </script>
+
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script src="{{ url_for('static', filename='login.js') }}"></script>
+{% endblock %}

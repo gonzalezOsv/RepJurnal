@@ -1,0 +1,115 @@
+{% extends "layout_user.html" %}
+
+{% block title %}Register - My Flask App{% endblock %}
+
+{% block content %}
+<main class="container mx-auto py-16 px-6">
+    <div class="max-w-md mx-auto bg-white p-8 rounded-lg shadow-lg">
+        <h2 class="text-4xl font-extrabold mb-6 text-center text-blue-800">Log Your Exercise</h2>
+
+        <!-- Display current set (after user enters weight and reps) -->
+        <div id="entered-set" class="mb-6 hidden text-center">
+            <p class="text-xl font-semibold text-gray-800 mb-2">Entered Set</p>
+            <p id="display-set" class="text-lg text-blue-600"></p>
+        </div>
+
+        <!-- Form for logging workout -->
+        <form id="workout-form">
+            <!-- Body Part Dropdown -->
+            <div class="mb-4">
+                <label for="body-part" class="block text-lg font-medium text-gray-700 mb-2">Select Body Part</label>
+                <select id="body-part" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+                    <option value="">Select Body Part</option>
+                    <option value="chest">Chest</option>
+                    <option value="back">Back</option>
+                    <option value="legs">Legs</option>
+                    <option value="arms">Arms</option>
+                    <option value="shoulders">Shoulders</option>
+                    <option value="abs">Abs</option>
+                </select>
+            </div>
+
+                        <!-- Exercise Dropdown -->
+            <div class="mb-4">
+                <label for="exercise" class="block text-lg font-medium text-gray-700 mb-2">Select Exercise</label>
+                <select id="exercise" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+                    <option value="">Select Exercise</option>
+                    <!-- Options will be populated dynamically -->
+                    <option value="custom">Custom Exercise</option>
+                </select>
+            </div>
+
+            <!-- Custom Exercise Input (hidden by default) -->
+            <div id="custom-exercise-container" class="mb-4 hidden">
+                <label for="custom-exercise" class="block text-lg font-medium text-gray-700 mb-2">Enter Custom Exercise Name</label>
+                <input type="text" id="custom-exercise" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600" placeholder="Custom Exercise Name">
+            </div>
+
+            <!-- Weight and Reps Inputs -->
+            <div class="grid grid-cols-3 gap-4 mb-4">
+                <div>
+                    <label for="weight" class="block text-lg font-medium text-gray-700 mb-2">Weight</label>
+                    <input type="number" id="weight" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600" placeholder="Enter weight">
+                </div>
+                <div>
+                    <label for="unit" class="block text-lg font-medium text-gray-700 mb-2">Unit</label>
+                    <select id="unit" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+                        <option value="lb">lbs</option>
+                        <option value="kg">kg</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="reps" class="block text-lg font-medium text-gray-700 mb-2">Reps</label>
+                    <input type="number" id="reps" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600" placeholder="Enter reps">
+                </div>
+                <!-- reps-->
+                <div>
+                    <label for="sets" class="block text-lg font-medium text-gray-700 mb-2">Sets</label>
+                    <input type="number" id="sets" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600" placeholder="Enter Sets">
+                </div>
+            </div>
+            
+            <!-- Submit Button -->
+            <div class="text-center">
+                <button type="submit" class="bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg hover:bg-blue-700 transition-all">
+                    Log Set
+                </button>
+            </div>
+
+            <div class="max-w-md mx-auto mt-8">
+                <h3 class="text-2xl font-bold mb-4 text-gray-800">Today's Sets</h3>
+                <div id="logged-sets" class="space-y-2">
+                    <!-- Logged sets will appear here -->
+                </div>
+            </div>
+
+        </form>
+
+                <!-- Tips Section -->
+                <div class="mt-8">
+                    <div class="flex items-center justify-between cursor-pointer" id="tips-toggle">
+                        <h3 class="text-2xl font-bold text-gray-800">Tips</h3>
+                        <span id="tips-arrow" class="text-blue-600">▼</span>
+                    </div>
+                    <div id="tips-content" class="mt-4 hidden">
+                        <p class="text-gray-700 mb-2">Based on your previous logs, here are some recommendations:</p>
+                        <div id="tips-recommendation" class="bg-gray-50 p-4 rounded-lg">
+                            <!-- Tips will be dynamically populated here -->
+                            <p class="text-gray-600">Select an exercise to see recommendations.</p>
+                        </div>
+                    </div>
+                </div>
+
+        <!-- Add this after your form -->
+
+
+    </div>
+</main>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script src="{{ url_for('static', filename='repLogger.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+
+{% endblock %}

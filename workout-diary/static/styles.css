@@ -1,0 +1,119 @@
+/* * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f9;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.auth-container {
+    background: #ffffff;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 400px;
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 1.5rem;
+    color: #333;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+label {
+    display: block;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+    color: #555;
+}
+
+input[type="text"],
+input[type="password"] {
+    width: 100%;
+    padding: 0.8rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+    color: #333;
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus {
+    border-color: #007bff;
+    outline: none;
+}
+
+.btn {
+    width: 100%;
+    padding: 0.8rem;
+    margin-top: 1rem;
+    font-size: 1rem;
+    color: #fff;
+    background: #007bff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.btn:hover {
+    background: #0056b3;
+}
+
+.register-btn {
+    background: #6c757d;
+}
+
+.register-btn:hover {
+    background: #565e64;
+}
+
+@media (max-width: 768px) {
+    .login-container {
+        padding: 1.5rem;
+    }
+} */
+
+.error_msg {
+    display: none; 
+    margin-bottom: 16px;
+}
+
+/* Custom styles */
+
+body {
+    font-family: 'Inter', sans-serif; /* Ensure you include the font family */
+}
+
+#entered-set {
+    display: none;
+}
+
+#entered-set.show {
+    display: block;
+}
+
+
+.btn {
+    @apply text-center text-white px-6 py-3 rounded-lg shadow-lg transition;
+}
+
+.btn-primary {
+    @apply bg-blue-600 hover:bg-blue-700;
+}
+
+.btn-secondary {
+    @apply bg-gray-800 hover:bg-gray-700;
+}

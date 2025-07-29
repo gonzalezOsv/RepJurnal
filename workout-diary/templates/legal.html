@@ -1,0 +1,26 @@
+{% extends "layout.html" %}
+
+{% block title %}Login - Fitness Tracker{% endblock %}
+
+{% block content %}
+
+<body class="bg-gray-100 font-sans">
+    <header class="bg-blue-600 text-white p-4">
+        <h1 class="text-2xl font-bold">{{ document_type|capitalize }}</h1>
+    </header>
+    <main class="container mx-auto p-6 bg-white rounded shadow mt-6">
+        <h2 class="text-xl font-semibold">Version {{ version }}</h2>
+        <p class="text-sm text-gray-500">Effective Date: {{ effective_date.strftime('%B %d, %Y') }}</p>
+        <hr class="my-4">
+        <div class="prose max-w-none">
+            {{ content|safe }}
+        </div>
+    </main>
+</body>
+
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script src="{{ url_for('static', filename='login.js') }}"></script>
+{% endblock %}
