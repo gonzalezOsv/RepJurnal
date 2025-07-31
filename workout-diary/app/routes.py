@@ -3,8 +3,8 @@ import json
 
 from flask import Blueprint, jsonify, render_template, request, redirect, url_for, flash, current_app
 from werkzeug.security import generate_password_hash
-from models import db, User, Workout, Exercise, CustomExercise
-from auth_service import AuthService
+from .models import db, User, Workout, Exercise, CustomExercise
+from .auth_service import AuthService
 from flask_login import login_user, logout_user, login_required, current_user
 from datetime import datetime, timedelta
 from sqlalchemy import func

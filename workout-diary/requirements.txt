@@ -2,7 +2,9 @@ Flask
 Flask-SQLAlchemy
 Flask-Migrate
 flask-jwt-extended
+flask-login
 Werkzeug
 bcrypt
 PyMySQL
 sqlalchemy
+pymysql

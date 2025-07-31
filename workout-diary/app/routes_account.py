@@ -1,7 +1,7 @@
 from flask import request, flash, redirect, url_for, Blueprint, jsonify
 from flask_login import login_required, current_user
-from models import db, User
-from my_utils import format_phone_number
+from .models import db, User
+from .my_utils import format_phone_number
 
 # Define blueprints
 account_bp = Blueprint('account', __name__)

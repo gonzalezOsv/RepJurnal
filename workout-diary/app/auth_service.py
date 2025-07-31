@@ -1,5 +1,5 @@
 from werkzeug.security import check_password_hash
-from models import User
+from .models import User
 
 class AuthService:
     def __init__(self, user_retrieval_function):

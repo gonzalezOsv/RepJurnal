@@ -2,16 +2,22 @@ import secrets
 from flask import Flask
 from flask_jwt_extended import JWTManager
 import os
-from models import db, User  # Import db directly from models
-from initialize_data_base import initialize_database
-import constants as constants
+from .models import db, User
+
+#from models import db, User  # Import db directly from models
+
+from .initialize_data_base import initialize_database
+
+#import constants as constants_main
+from . import constants as constants_main
+
 from flask_login import LoginManager
 
 def create_app():
     app = Flask(__name__, template_folder='../templates', static_folder='../static')
 
     # Configure the app
-    app.config['SQLALCHEMY_DATABASE_URI'] = constants.DATABASE_URI
+    app.config['SQLALCHEMY_DATABASE_URI'] = constants_main.DATABASE_URI
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['JWT_SECRET_KEY'] = secrets.token_urlsafe(32)  # Generate a strong secret key
 
@@ -26,11 +32,11 @@ def create_app():
     login_manager.login_message = 'Please log in to access this page.'  # Optional: Custom message
 
     # Register blueprints
-    from routes import main_bp, auth_bp
-    from rep_logger import workout_bp
-    from routes_account import account_bp;
-    from routes_legal import legal_bp; 
-    from routes_metrics import metrics_bp;
+    from .routes import main_bp, auth_bp
+    from .rep_logger import workout_bp
+    from .routes_account import account_bp;
+    from .routes_legal import legal_bp; 
+    from .routes_metrics import metrics_bp;
 
     # Register blueprints
     app.register_blueprint(main_bp, url_prefix='/')  # Root for main routes
@@ -57,12 +63,12 @@ def init_login_manager(app):
            
     return login_manager
 
-if __name__ == "__main__":
-    initialize_database()
-    app = create_app()
-    login_manager = init_login_manager(app)  # Initialize login manager after creating the app
+# if __name__ == "__main__":
+#     initialize_database()
+#     app = create_app()
+#     login_manager = init_login_manager(app)  # Initialize login manager after creating the app
 
-#---- for local network testing... update to current port : ipconfig
-    app.run(host='192.168.1.144', port=5000)
+# #---- for local network testing... update to current port : ipconfig
+#     app.run(host='0.0.0.0')
     
-    #app.run(debug=True)
+#     #app.run(debug=True)

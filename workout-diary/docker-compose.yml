@@ -7,24 +7,29 @@ services:
     depends_on:
       - db
     environment:
-      - SECRET_KEY=your_very_secret_key  # Use environment variables for secrets
-      - SQLALCHEMY_DATABASE_URI=mysql+pymysql://flaskuser:flaskpassword@db/fitness_tracker
+      FLASK_ENV: development 
+      SECRET_KEY: your_very_secret_key
+      SQLALCHEMY_DATABASE_URI: mysql+pymysql://flaskuser:flaskpassword@db/fitness_tracker
+      # FLASK_APP is not strictly necessary with `python -m app` but can be useful for Flask CLI commands
+      FLASK_APP: app
     volumes:
-      - .:/app  # Mount current directory to the container's /app directory (for code persistence)
-      
+      - .:/app
+
   db:
+    # It's recommended to use a specific version, not 'latest', for stability
     image: mariadb:latest
-    container_name: mariadb-container
+    container_name: mariadb-container-dev
     environment:
-      MYSQL_ROOT_PASSWORD: my-secret-pw  # Root password for MariaDB
-      MYSQL_DATABASE: fitness_tracker   # The database to create for your app
-      MYSQL_USER: flaskuser             # The user you will use to connect
-      MYSQL_PASSWORD: flaskpassword     # The user's password
+      MYSQL_ROOT_PASSWORD: my-secret-pw
+      MYSQL_DATABASE: fitness_tracker
+      MYSQL_USER: flaskuser
+      MYSQL_PASSWORD: flaskpassword
     ports:
-      - "3306:3306"  # Exposing MariaDB port to the host
+      - "3306:3306"
     volumes:
-      - mariadb_data:/var/lib/mysql  # Persist MariaDB data
-      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql  # Mount the SQL initialization script
+      - mariadb_data:/var/lib/mysql
+      # This line is crucial for automatic database initialization by MariaDB
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
 
 volumes:
   mariadb_data:

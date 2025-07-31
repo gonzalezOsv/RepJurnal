@@ -512,10 +512,7 @@ VALUES (
 
 
 -- Insert basic body parts
-INSERT INTO BodyParts (body_part_name) VALUES 
-
-
-ON DUPLICATE KEY UPDATE body_part_name = VALUES(body_part_name);
+INSERT INTO BodyParts (body_part_name) VALUES ON DUPLICATE KEY UPDATE body_part_name = VALUES(body_part_name);
 
 -- Insert standard exercises
 INSERT INTO StandardExercises (body_part_id, exercise_name, description, is_compound) VALUES

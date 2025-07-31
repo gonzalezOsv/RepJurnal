@@ -1,7 +1,7 @@
 
 from flask import Blueprint, jsonify, request, render_template
 from flask_login import login_required, current_user
-from models import User, db, Workout, Exercise, BodyPart, StandardExercise, CustomExercise
+from .models import User, db, Workout, Exercise, BodyPart, StandardExercise, CustomExercise
 from datetime import date, timedelta, datetime
 
 from sqlalchemy import func, extract

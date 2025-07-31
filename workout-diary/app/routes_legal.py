@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, abort
-from models import db, LegalDocument
+from .models import db, LegalDocument
 
 legal_bp = Blueprint('legal', __name__)
 

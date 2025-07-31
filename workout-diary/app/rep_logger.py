@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from flask_login import login_required, current_user
-from models import db, Workout, Exercise, BodyPart, StandardExercise, CustomExercise
+from .models import db, Workout, Exercise, BodyPart, StandardExercise, CustomExercise
 from datetime import date
 
 workout_bp = Blueprint('workout', __name__)
