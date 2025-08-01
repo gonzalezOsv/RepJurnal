@@ -1,7 +1,7 @@
 # Constants for your application
 
 # Database configurations
-DATABASE_URI = 'mysql+pymysql://flaskuser:flaskpassword@localhost/fitness_tracker'
+DATABASE_URI = 'mysql+pymysql://flaskuser:flaskpassword@db/fitness_tracker'
 
 # JWT Secret Key
 JWT_SECRET_KEY = 'your_jwt_secret_key'

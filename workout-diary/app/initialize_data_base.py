@@ -9,7 +9,7 @@ def initialize_database():
         # IMPORTANT: Change 'localhost' to your MariaDB service name in Docker Compose
         # If your docker-compose.yml has 'mariadb:', use 'mariadb' here.
         connection = pymysql.connect(
-            host='mariadb',             # <--- CHANGE THIS from 'localhost'
+            host='db',             # <--- CHANGE THIS from 'localhost'
             user='flaskuser',
             password='flaskpassword',
             database='fitness_tracker'
