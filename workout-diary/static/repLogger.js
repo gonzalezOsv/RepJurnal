@@ -2,14 +2,53 @@ $(document).ready(function () {
     const bodyPartSelect = $('#body-part');
     const exerciseSelect = $('#exercise');
     let customExerciseInput = null;
-    const loggedSetsContainer = $('<div id="logged-sets" class="mt-8 space-y-2"></div>');
+    let selectedDate = new Date();
 
-    // Add container for logged sets after the form
-    $('#workout-form').after(loggedSetsContainer);
+    // Set today's date in the date picker
+    const datePicker = $('#workout-date-picker');
+    datePicker.val(formatDateForInput(selectedDate));
+    updateDisplayDate();
 
     // Load body parts and logged sets on page load
     loadBodyParts();
     loadLoggedSets();
+
+    // Handle date picker change
+    datePicker.on('change', function() {
+        selectedDate = new Date($(this).val() + 'T00:00:00');
+        updateDisplayDate();
+        loadLoggedSets();
+    });
+
+    // Handle "Today" button click
+    $('#today-btn').on('click', function(e) {
+        e.preventDefault();
+        selectedDate = new Date();
+        datePicker.val(formatDateForInput(selectedDate));
+        updateDisplayDate();
+        loadLoggedSets();
+    });
+
+    function updateDisplayDate() {
+        const displayDate = selectedDate.toLocaleDateString('en-US', { 
+            weekday: 'short', 
+            month: 'short', 
+            day: 'numeric',
+            year: 'numeric'
+        });
+        $('#display-date').text(displayDate);
+    }
+
+    function formatDateForInput(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    function getSelectedDate() {
+        return selectedDate;
+    }
 
     async function loadBodyParts() {
         try {
@@ -27,13 +66,39 @@ $(document).ready(function () {
 
     async function loadLoggedSets() {
         try {
-            const response = await $.get('/workout/api/logged-sets');
-
+            const dateStr = formatDateForInput(selectedDate);
+            const response = await $.get(`/workout/api/logged-sets?date=${dateStr}`);
             const loggedSets = response.logged_sets;
 
-            // Populate logged sets
+            // Clear the logged sets container
+            $('#logged-sets').empty();
+
+            if (loggedSets.length === 0) {
+                showEmptyState();
+                return;
+            }
+
+            // Group exercises by exercise_name, weight, and reps
+            const groupedSets = {};
             loggedSets.forEach(set => {
-                addLoggedSet(set.exercise_name, set.weight, set.unit, set.reps, set.sets, set.id);
+                const key = `${set.exercise_name}_${set.weight}_${set.reps}`;
+                if (!groupedSets[key]) {
+                    groupedSets[key] = {
+                        exercise_name: set.exercise_name,
+                        weight: set.weight,
+                        unit: set.unit,
+                        reps: set.reps,
+                        sets: 0,
+                        ids: []
+                    };
+                }
+                groupedSets[key].sets += set.sets;
+                groupedSets[key].ids.push(set.id);
+            });
+
+            // Display grouped sets
+            Object.values(groupedSets).forEach(set => {
+                addLoggedSet(set.exercise_name, set.weight, set.unit, set.reps, set.sets, set.ids);
             });
 
         } catch (error) {
@@ -42,11 +107,27 @@ $(document).ready(function () {
         }
     }
 
+    function showEmptyState() {
+        $('#logged-sets').html(`
+            <div class="flex flex-col items-center justify-center py-12 text-gray-400" id="empty-state">
+                <svg class="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                </svg>
+                <p class="text-lg font-semibold">No exercises logged yet</p>
+                <p class="text-sm mt-1">Start tracking your workout!</p>
+            </div>
+        `);
+    }
+
     // Toggle Tips Section
     $("#tips-toggle").click(function () {
-        $("#tips-content").slideToggle();
-        const arrow = $("#tips-arrow").text();
-        $("#tips-arrow").text(arrow === "▼" ? "▲" : "▼");
+        $("#tips-content").slideToggle(300);
+        const arrow = $("#tips-arrow");
+        if (arrow.text() === "▼") {
+            arrow.text("▲").css("transform", "rotate(180deg)");
+        } else {
+            arrow.text("▼").css("transform", "rotate(0deg)");
+        }
     });
 
     // Example: Dynamically update tips based on exercise selection
@@ -137,18 +218,34 @@ $(document).ready(function () {
     }
 
     $('#logged-sets').on('click', '.delete-btn', async function () {
-        const liftId = $(this).data('id'); // Get the ID of the lift to delete
+        const liftIds = $(this).data('ids'); // Get array of IDs for grouped sets
+        const idsArray = Array.isArray(liftIds) ? liftIds : [liftIds];
+        const setCard = $(this).closest('.set-card');
+        
         try {
-            await $.ajax({
-                url: `/workout/api/logged-sets/${liftId}`,
-                method: 'DELETE',
-            });
+            // Delete all sets in the group
+            const deletePromises = idsArray.map(id => 
+                $.ajax({
+                    url: `/workout/api/logged-sets/${id}`,
+                    method: 'DELETE',
+                })
+            );
+            
+            await Promise.all(deletePromises);
     
-            // Remove the deleted lift from the DOM
-            $(`[data-id="${liftId}"]`).fadeOut(() => $(this).remove());
+            // Remove the card from the DOM with animation
+            setCard.addClass('opacity-0 scale-95 transition-all duration-300');
+            setTimeout(() => {
+                setCard.remove();
+                if ($('#logged-sets').children('.set-card').length === 0) {
+                    showEmptyState();
+                }
+            }, 300);
+            
+            showSuccessNotification('Exercise deleted successfully');
         } catch (error) {
             console.error('Error deleting lift:', error);
-            alert('Failed to delete the lift. Please try again.');
+            showError('Failed to delete the exercise. Please try again.');
         }
     });
     
@@ -170,7 +267,8 @@ $(document).ready(function () {
                 weight: $('#weight').val() || 0,
                 unit: $('#unit').val(),
                 reps: $('#reps').val(),
-                sets: $('#sets').val() || 1
+                sets: $('#sets').val() || 1,
+                date: formatDateForInput(selectedDate)
             };
 
             if (exerciseValue === 'new_custom') {
@@ -207,15 +305,11 @@ $(document).ready(function () {
                 data: JSON.stringify(exerciseData)
             });
 
-            addLoggedSet(
-                exerciseData.exerciseName || $('option:selected', exerciseSelect).text(),
-                exerciseData.weight,
-                exerciseData.unit,
-                exerciseData.reps,
-                exerciseData.sets
-            );
-
+            showSuccessNotification('Exercise logged successfully!');
             resetForm();
+            
+            // Reload logged sets to show grouped data
+            await loadLoggedSets();
 
         } catch (error) {
             console.error('Error logging exercise:', error);
@@ -223,24 +317,41 @@ $(document).ready(function () {
         }
     });
 
-function addLoggedSet(exerciseName, weight, unit, reps, sets, liftId) {
+function addLoggedSet(exerciseName, weight, unit, reps, sets, liftIds) {
     const setDiv = $(`
-        <div class="bg-blue-50 p-4 rounded-lg shadow flex justify-between items-center" data-id="${liftId}">
-            <p class="text-lg font-medium text-blue-900 flex-1 mr-4">  <!-- Added margin-right (mr-4) to separate from the button -->
-                <strong>${exerciseName}</strong>: ${sets} X ${reps} at ${weight} ${unit}
-            </p>
-            <div class="flex gap-2">
+        <div class="set-card bg-white border-2 border-gray-200 hover:border-blue-300 rounded-xl shadow-md hover:shadow-lg p-5 transition-all duration-300">
+            <div class="flex items-center justify-between">
+                <div class="flex-1">
+                    <h3 class="text-gray-800 font-bold text-lg mb-3">${exerciseName}</h3>
+                    <div class="flex items-center gap-3 text-sm">
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                            <span class="text-gray-600 text-xs">Sets</span>
+                            <span class="text-blue-700 font-bold ml-1">${sets}</span>
+                        </div>
+                        <div class="bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                            <span class="text-gray-600 text-xs">Reps</span>
+                            <span class="text-green-700 font-bold ml-1">${reps}</span>
+                        </div>
+                        <div class="bg-purple-50 border border-purple-200 rounded-lg px-3 py-2">
+                            <span class="text-gray-600 text-xs">Weight</span>
+                            <span class="text-purple-700 font-bold ml-1">${weight} ${unit}</span>
+                        </div>
+                    </div>
+                </div>
                 <button 
-                    class="delete-btn bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-                    data-id="${liftId}">
-                    Delete
+                    class="delete-btn bg-gray-100 hover:bg-red-50 text-gray-600 hover:text-red-600 p-3 rounded-lg transition-all duration-300 ml-4 border border-gray-200 hover:border-red-300"
+                    data-ids='${JSON.stringify(liftIds)}'
+                    title="Delete exercise">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
                 </button>
             </div>
         </div>
     `);
     
-    $('#logged-sets').prepend(setDiv);
-    setDiv.hide().fadeIn();
+    $('#logged-sets').append(setDiv);
+    setDiv.hide().fadeIn(300);
 }
 
     function resetForm() {
@@ -263,11 +374,33 @@ function addLoggedSet(exerciseName, weight, unit, reps, sets, liftId) {
 
     function showError(message) {
         const errorDiv = $(`
-            <div class="bg-red-50 text-red-900 px-4 py-3 rounded relative mb-4" role="alert">
-                <span class="block sm:inline">${message}</span>
+            <div class="fixed top-4 right-4 bg-white border-l-4 border-red-500 text-gray-800 px-6 py-4 rounded-lg shadow-xl z-50 flex items-center gap-3 animate__animated animate__fadeInRight">
+                <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span class="font-medium">${message}</span>
             </div>
         `);
-        $('#workout-form').prepend(errorDiv);
-        setTimeout(() => errorDiv.fadeOut('slow', function () { $(this).remove(); }), 3000);
+        $('body').append(errorDiv);
+        setTimeout(() => {
+            errorDiv.addClass('animate__fadeOutRight');
+            setTimeout(() => errorDiv.remove(), 1000);
+        }, 3000);
+    }
+
+    function showSuccessNotification(message) {
+        const successDiv = $(`
+            <div class="fixed top-4 right-4 bg-white border-l-4 border-green-500 text-gray-800 px-6 py-4 rounded-lg shadow-xl z-50 flex items-center gap-3 animate__animated animate__fadeInRight">
+                <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span class="font-medium">${message}</span>
+            </div>
+        `);
+        $('body').append(successDiv);
+        setTimeout(() => {
+            successDiv.addClass('animate__fadeOutRight');
+            setTimeout(() => successDiv.remove(), 1000);
+        }, 2000);
     }
 });

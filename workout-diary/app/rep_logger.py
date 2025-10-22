@@ -1,6 +1,7 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, current_app
 from flask_login import login_required, current_user
 from .models import db, Workout, Exercise, BodyPart, StandardExercise, CustomExercise
+from .validators import validate_exercise_log, validate_date_string, sanitize_input
 from datetime import date
 
 workout_bp = Blueprint('workout', __name__)
@@ -38,78 +39,144 @@ def get_exercises(body_part):
 @workout_bp.route('/api/bodyparts', methods=['GET'])
 @login_required
 def get_body_parts():
-    print("get bodyparts api....")
+    """
+    Get list of all available body parts.
+    """
+    current_app.logger.debug(f"User {current_user.user_id} requesting body parts list")
+    
     body_parts = BodyPart.query.order_by(BodyPart.body_part_name).all()
-    print("done...")
-    return jsonify([bp.body_part_name for bp in body_parts])
+    
+    return jsonify([bp.body_part_name for bp in body_parts]), 200
 
 
 
 @workout_bp.route('/api/custom-exercise', methods=['POST'])
 @login_required
 def add_custom_exercise():
-    print("get custom exercies api....")
-    data = request.get_json()
+    """
+    Create a new custom exercise for the user.
+    """
+    current_app.logger.info(f"User {current_user.user_id} creating custom exercise")
     
-    body_part = BodyPart.query.filter_by(body_part_name=data['bodyPart']).first()
-    if not body_part:
-        return jsonify({'error': 'Invalid body part'}), 400
+    try:
+        data = request.get_json()
         
-    new_exercise = CustomExercise(
-        user_id=current_user.user_id,
-        body_part_id=body_part.body_part_id,
-        exercise_name=data['exerciseName']
-    )
-    
-    db.session.add(new_exercise)
-    db.session.commit()
-    print("done...")
-    return jsonify({'customExerciseId': new_exercise.custom_exercise_id})
+        body_part = BodyPart.query.filter_by(body_part_name=data['bodyPart']).first()
+        if not body_part:
+            current_app.logger.warning(f"Invalid body part '{data['bodyPart']}' from user {current_user.user_id}")
+            return jsonify({'error': 'Invalid body part'}), 400
+            
+        new_exercise = CustomExercise(
+            user_id=current_user.user_id,
+            body_part_id=body_part.body_part_id,
+            exercise_name=sanitize_input(data['exerciseName'], 100)
+        )
+        
+        db.session.add(new_exercise)
+        db.session.commit()
+        
+        current_app.logger.info(
+            f"User {current_user.user_id} created custom exercise: {new_exercise.exercise_name}"
+        )
+        
+        return jsonify({'customExerciseId': new_exercise.custom_exercise_id}), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error creating custom exercise: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Failed to create custom exercise'}), 500
 
 @workout_bp.route('/api/exercise_log', methods=['POST'])
 @login_required
 def add_exercise():
-    data = request.get_json()
-    data_sets = 1; 
-    # Get or create today's workout
-    today_workout = Workout.query.filter_by(
-        user_id=current_user.user_id,
-        date=date.today()
-    ).first()
+    """
+    Log an exercise with comprehensive input validation.
+    """
+    from datetime import datetime
     
-    if not today_workout:
-        today_workout = Workout(
+    try:
+        data = request.get_json()
+        
+        # Validate and parse date
+        workout_date_str = data.get('date')
+        if workout_date_str:
+            is_valid, error = validate_date_string(workout_date_str)
+            if not is_valid:
+                return jsonify({'error': error}), 400
+            workout_date = datetime.strptime(workout_date_str, '%Y-%m-%d').date()
+        else:
+            workout_date = date.today()
+        
+        # Validate exercise data
+        weight = data.get('weight', 0)
+        reps = data.get('reps', 0)
+        sets = data.get('sets', 0)
+        
+        # Validate exercise log data (allow 0 weight for bodyweight exercises)
+        is_valid, errors = validate_exercise_log(weight, reps, sets, allow_bodyweight=True)
+        if not is_valid:
+            # Return first error
+            field, message = next(iter(errors.items()))
+            return jsonify({'error': message}), 400
+        
+        # Convert to proper types after validation
+        weight = float(weight)
+        reps = int(reps)
+        sets = int(sets)
+        
+        # Validate body part
+        body_part_name = sanitize_input(data.get('bodyPart', ''), 50)
+        body_part = BodyPart.query.filter_by(body_part_name=body_part_name).first()
+        if not body_part:
+            current_app.logger.warning(
+                f"Invalid body part '{body_part_name}' from user {current_user.user_id}"
+            )
+            return jsonify({'error': 'Invalid body part'}), 400
+        
+        # Get or create workout for the selected date
+        workout = Workout.query.filter_by(
             user_id=current_user.user_id,
-            date=date.today()
-        )
-        db.session.add(today_workout)
+            date=workout_date
+        ).first()
+        
+        if not workout:
+            workout = Workout(
+                user_id=current_user.user_id,
+                date=workout_date
+            )
+            db.session.add(workout)
+            db.session.commit()
+        
+        # Create exercise entries (one per set)
+        for i in range(sets):
+            new_exercise = Exercise(
+                workout_id=workout.workout_id,
+                user_id=current_user.user_id,
+                body_part_id=body_part.body_part_id,
+                standard_exercise_id=data.get('standardExerciseId'),
+                custom_exercise_id=data.get('customExerciseId'),
+                sets=1,  # Each DB entry represents 1 set
+                reps=reps,
+                weight=weight,
+                date=workout_date
+            )
+            db.session.add(new_exercise)
+        
         db.session.commit()
-    
-    data_sets = int(data['sets'])
-    print("-----")
-    print(data_sets)
-    # Get body part
-    body_part = BodyPart.query.filter_by(body_part_name=data['bodyPart']).first()
-    if not body_part:
-        return jsonify({'error': 'Invalid body part'}), 400
-    
-    for i in range(data_sets):
-        # Create new exercise
-        new_exercise = Exercise(
-            workout_id=today_workout.workout_id,
-            body_part_id=body_part.body_part_id,
-            standard_exercise_id=data.get('standardExerciseId'),
-            custom_exercise_id=data.get('customExerciseId'),
-            sets=1,  # Assuming one set at a time
-            reps=int(data['reps']),
-            weight=float(data['weight']),
-            date=date.today()
+        
+        current_app.logger.info(
+            f"User {current_user.user_id} logged {sets} sets of {body_part_name}"
         )
         
-        db.session.add(new_exercise)
-    db.session.commit()
-    
-    return jsonify({'success': True})
+        return jsonify({'success': True}), 201
+        
+    except ValueError as e:
+        current_app.logger.error(f"Value error in add_exercise: {str(e)}")
+        return jsonify({'error': 'Invalid data format'}), 400
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error in add_exercise: {str(e)}", exc_info=True)
+        return jsonify({'error': 'An error occurred while logging the exercise'}), 500
 
 
 @workout_bp.route('/api/logged-sets', methods=['GET'])

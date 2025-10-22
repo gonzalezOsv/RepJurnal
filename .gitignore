@@ -1,0 +1,111 @@
+# ===================================
+# FITNESS DIARY PROJECT - ROOT GITIGNORE
+# ===================================
+
+# Environment variables (CRITICAL - Never commit!)
+.env
+.env.local
+.env.production
+.env.*.local
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual environments
+workout-diary/venv/
+workout-diary/env/
+workout-diary/ENV/
+
+# Flask specific
+instance/
+.webassets-cache
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+*.sql-journal
+
+# Logs (Don't commit production logs!)
+*.log
+logs/
+workout-diary/logs/*.log
+workout-diary/logs/*.txt
+
+# Node.js / NPM
+node_modules/
+workout-diary/node_modules/
+workout-diary/client/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+.pnpm-debug.log*
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+.project
+.pydevproject
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+
+# Docker (development only files)
+docker-compose.override.yml
+
+# OS specific
+Thumbs.db
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
+
+# Build outputs
+*.pyc
+*.pyo
+

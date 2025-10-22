@@ -1,5 +1,5 @@
 import os
-from .app import create_app, init_login_manager 
+from .app import create_app
 from .initialize_data_base import initialize_database
 
 def main():
@@ -15,9 +15,6 @@ def main():
 
     # Create the Flask application instance
     app = create_app()
-
-    # Initialize LoginManager
-    init_login_manager(app)
 
     # Start the Flask application
     print(f"Starting Flask application in {environment} environment...")

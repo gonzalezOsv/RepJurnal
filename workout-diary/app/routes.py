@@ -1,10 +1,17 @@
 # routes/main_routes.py
 import json
+from urllib.parse import urlparse, urljoin
 
 from flask import Blueprint, jsonify, render_template, request, redirect, url_for, flash, current_app
 from werkzeug.security import generate_password_hash
-from .models import db, User, Workout, Exercise, CustomExercise
+from .models import db, User, Workout, Exercise, CustomExercise, MotivationalQuote
 from .auth_service import AuthService
+from .validators import (
+    validate_registration_data, 
+    sanitize_input, 
+    validate_email,
+    validate_password_strength
+)
 from flask_login import login_user, logout_user, login_required, current_user
 from datetime import datetime, timedelta
 from sqlalchemy import func
@@ -21,6 +28,36 @@ def get_user_by_username(username):
 
 # Initialize AuthService
 auth_service = AuthService(get_user_by_username)
+
+
+def is_safe_url(target):
+    """
+    Validate that a redirect URL is safe (same origin).
+    Prevents open redirect vulnerabilities.
+    
+    Args:
+        target: URL to validate
+    
+    Returns:
+        bool: True if URL is safe, False otherwise
+    """
+    if not target:
+        return False
+    
+    # Get the referrer URL
+    ref_url = urlparse(request.host_url)
+    # Parse the target URL
+    test_url = urlparse(urljoin(request.host_url, target))
+    
+    # Check that the scheme is http or https
+    if test_url.scheme not in ('http', 'https', ''):
+        return False
+    
+    # Check that the network location matches (same domain)
+    if test_url.netloc and test_url.netloc != ref_url.netloc:
+        return False
+    
+    return True
 
 # Main routes
 @main_bp.route('/')
@@ -39,8 +76,16 @@ def login_page():
             login_user(user)
             flash('You are now logged in!', 'success')
 
-            # Redirect to 'next' or default to the dashboard
+            # SECURE redirect - validate 'next' parameter to prevent open redirect
             next_page = request.args.get('next')
+            if next_page and not is_safe_url(next_page):
+                # Log the suspicious redirect attempt
+                current_app.logger.warning(
+                    f"Attempted open redirect to: {next_page} from IP: {request.remote_addr}"
+                )
+                # Ignore the malicious redirect and go to dashboard
+                next_page = None
+            
             return redirect(next_page or url_for('main.dashboard'))
         else:
             flash('Invalid username or password. Please try again.', 'danger')
@@ -98,7 +143,7 @@ def dashboard():
             workout_exercises[workout_id][body_part_name].append({
                 "key": exercise_key,
                 "exercise_name": exercise.get_exercise_name(),
-                "weight": exercise.weight,
+                "weight": float(exercise.weight),
                 "reps": exercise.reps,
                 "sets": exercise.sets,
             })
@@ -107,24 +152,82 @@ def dashboard():
     workouts_exist = bool(workouts)
 
     # Calculate the total weight lifted and total reps performed for the selected date
-    total_weight_lifted = Exercise.get_total_weight_lifted(workout_ids)
-    total_reps_performed = Exercise.get_total_reps(workout_ids)
+    # Convert to float to avoid Decimal type issues in templates
+    total_weight_lifted = float(Exercise.get_total_weight_lifted(workout_ids))
+    total_reps_performed = float(Exercise.get_total_reps(workout_ids))
 
     # Get the workouts this week for progress snapshot
     workouts_this_week = Workout.get_workouts_this_week(current_user.user_id)
-
-   # max_single_lift = Exercise.query.filter_by(workout_id=workout_ids).order_by(Exercise.weight.desc()).first().weight
-   # unique_exercises_count = Exercise.query.filter_by(workout_id=workout_ids).distinct(Exercise.exercise_name).count()
-    #workout_streak = Workout.calculate_consecutive_workout_days(current_user.user_id)
-
+    
+    # Calculate workout streak
+    workout_streak = Workout.calculate_consecutive_workout_days(current_user.user_id)
+    
+    # Get max single lift (all time)
+    max_lift_exercise = db.session.query(Exercise).filter(
+        Exercise.user_id == current_user.user_id
+    ).order_by(Exercise.weight.desc()).first()
+    max_single_lift = float(max_lift_exercise.weight) if max_lift_exercise else 0.0
+    max_lift_name = max_lift_exercise.get_exercise_name() if max_lift_exercise else None
+    
+    # Get unique exercises count (this week)
+    week_start = datetime.now() - timedelta(days=datetime.now().weekday())
+    week_workouts = Workout.query.filter(
+        Workout.user_id == current_user.user_id,
+        Workout.date >= week_start.date()
+    ).all()
+    week_workout_ids = [w.workout_id for w in week_workouts]
+    
+    # Count unique exercises by name (MySQL doesn't support COUNT(DISTINCT col1, col2))
+    if week_workout_ids:
+        unique_exercises = db.session.query(
+            func.count(func.distinct(Exercise.exercise_name))
+        ).filter(Exercise.workout_id.in_(week_workout_ids)).scalar()
+    else:
+        unique_exercises = 0
+    
+    # Get a random motivational quote (handle if table doesn't exist yet)
+    try:
+        quote = MotivationalQuote.get_random_quote()
+    except Exception as e:
+        print(f"Warning: Could not fetch quote: {e}")
+        quote = None
+    
+    # Get recent PRs (last 7 days)
+    week_ago = datetime.now() - timedelta(days=7)
+    recent_prs = []
+    recent_exercises = db.session.query(Exercise).filter(
+        Exercise.user_id == current_user.user_id,
+        Exercise.date >= week_ago.date()
+    ).order_by(Exercise.weight.desc()).limit(5).all()
+    
+    for ex in recent_exercises:
+        # Check if this is a PR (highest weight for this exercise)
+        max_for_exercise = db.session.query(func.max(Exercise.weight)).filter(
+            Exercise.user_id == current_user.user_id,
+            Exercise.standard_exercise_id == ex.standard_exercise_id if ex.standard_exercise_id else None,
+            Exercise.custom_exercise_id == ex.custom_exercise_id if ex.custom_exercise_id else None,
+            Exercise.date < ex.date
+        ).scalar()
+        
+        if max_for_exercise is None or ex.weight > max_for_exercise:
+            recent_prs.append({
+                'name': ex.get_exercise_name(),
+                'weight': float(ex.weight),
+                'date': ex.date
+            })
+    
     # Pass data to the template
     return render_template(
         'dashboard.html',
-        #unique_exercises_count = unique_exercises_count,
-        #max_single_lift = max_single_lift,
         workouts_this_week=len(workouts_this_week),
         total_weight_lifted=total_weight_lifted,
         total_reps_performed=total_reps_performed,
+        max_single_lift=max_single_lift,
+        max_lift_name=max_lift_name,
+        unique_exercises_count=unique_exercises,
+        workout_streak=workout_streak,
+        quote=quote,
+        recent_prs=recent_prs,
         user=user_data,
         workouts=workouts,
         workout_exercises=workout_exercises,
@@ -183,62 +286,97 @@ def viewProgress():
 # Auth routes
 @auth_bp.route('/login', methods=['POST'])
 def login():
+    """
+    API endpoint for user login.
+    """
     data = request.get_json()
     username = data.get('username')
     password = data.get('password')
     
-    print("Login start...")
+    current_app.logger.debug(f"Login API request from IP: {request.remote_addr}")
+    
     user = auth_service.authenticate(username, password)
-    login_user(user)  # Log the user in
-    print("is this a user >>> ")
-    print(user)
-
+    
     if user:
-        print("we are in ...")
-        return jsonify({'redirect_url': url_for('main.dashboard')})
+        login_user(user)
+        current_app.logger.info(f"User {user.user_id} logged in successfully via API")
+        return jsonify({'redirect_url': url_for('main.dashboard')}), 200
     else:
-        print("we have failed....")
+        current_app.logger.warning(f"Failed login attempt from IP: {request.remote_addr}")
         return jsonify({
             'message': 'Invalid Username or Password please try again.'
         }), 401
 
 @auth_bp.route('/register', methods=['POST'])
 def register_user():
-    print("starting register process....")
+    """
+    User registration endpoint with comprehensive input validation.
+    """
     data = request.get_json()
-    username = data.get('username')
-    password = data.get('password')
-    email = data.get('email')
-
-
-    if get_user_by_username(username):
-        return jsonify({
-        'message': 'Username already exists', 'fields': {'username': 'This username is taken'}
-    }), 400
     
-    if not email or '@' not in email:
-        return jsonify({'message': 'Invalid email address', 'fields': {'email': 'Please provide a valid email'}
-    }), 400
+    # Sanitize inputs
+    username = sanitize_input(data.get('username', ''), 20)
+    email = sanitize_input(data.get('email', ''), 254)
+    password = data.get('password', '')  # Don't sanitize passwords
+    first_name = sanitize_input(data.get('first_name', ''), 50, allow_special_chars=True)
+    last_name = sanitize_input(data.get('last_name', ''), 50, allow_special_chars=True)
 
-    print("data gathered....")
-    if get_user_by_username(username) is not None:
-        return jsonify({'message': 'Username already exists'}), 400
+    # Comprehensive validation using validators module
+    is_valid, errors = validate_registration_data(
+        username, email, password, first_name, last_name
+    )
+    
+    if not is_valid:
+        # Return first error found
+        field, message = next(iter(errors.items()))
+        return jsonify({
+            'message': message,
+            'fields': errors
+        }), 400
+    
+    # Check if username already exists (use generic error to prevent user enumeration)
+    if get_user_by_username(username):
+        current_app.logger.warning(
+            f"Registration attempt with existing username: {username} from IP: {request.remote_addr}"
+        )
+        return jsonify({
+            'message': 'Registration failed. Please try different credentials.',
+            'fields': {'username': 'This username is not available'}
+        }), 400
+    
+    # Check if email already exists
+    existing_email = User.query.filter_by(email=email).first()
+    if existing_email:
+        current_app.logger.warning(
+            f"Registration attempt with existing email from IP: {request.remote_addr}"
+        )
+        return jsonify({
+            'message': 'An account with this email already exists.',
+            'fields': {'email': 'This email is already registered'}
+        }), 400
 
-
-
+    # Create new user
     new_user = User(username=username)
     new_user.set_password(password)
     new_user.set_email(email)
+    new_user.set_first_name(first_name)
+    new_user.set_last_name(last_name)
 
-    # db.session.commit() fails or if login_user(new_user) throws an exception, you should log it on the server and provide a generic error message to the client.
     try:
         db.session.add(new_user)
         db.session.commit()
         login_user(new_user)
-        return jsonify({'redirect_url': url_for('main.dashboard')})
+        
+        # Log successful registration (no sensitive data)
+        current_app.logger.info(f"New user registered: ID {new_user.user_id}")
+        
+        return jsonify({'redirect_url': url_for('main.dashboard')}), 201
     except Exception as e:
-        print(f"Registration failed: {e}")
-        return jsonify({'message': 'An error occurred during registration. Please try again.'}), 500
+        db.session.rollback()
+        current_app.logger.error(f"Registration failed: {str(e)}", exc_info=True)
+        return jsonify({
+            'message': 'An error occurred during registration. Please try again later.'
+        }), 500
 
 
 
@@ -246,18 +384,26 @@ def register_user():
 @main_bp.route('/logout', methods=['GET', 'POST'])
 @login_required
 def logout():
-    print("Logging out...")
+    """
+    Log out the current user.
+    """
+    user_id = current_user.user_id
+    current_app.logger.info(f"User {user_id} logging out")
+    current_app.security_logger.info(f"Event: logout | User: {user_id} | IP: {request.remote_addr}")
+    
     logout_user()
-    print("Done.")
     return redirect(url_for('main.home'))
 
 
 @main_bp.route('/account')
 @login_required
 def account():
+    """
+    Display user account page.
+    """
     user = User.query.get(current_user.user_id)
-    print("going to account... ")
-
+    current_app.logger.debug(f"User {current_user.user_id} accessing account page")
+    
     return render_template('account.html', user=user)
 
 

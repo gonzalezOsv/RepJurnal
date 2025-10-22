@@ -1,0 +1,110 @@
+# ===================================
+# WORKOUT DIARY - PROJECT SPECIFIC GITIGNORE
+# ===================================
+
+# Environment variables (CRITICAL - Never commit!)
+.env
+.env.local
+.env.production
+.env.*.local
+*.env
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.pyc
+*.pyo
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Flask specific
+instance/
+.webassets-cache
+
+# Database files (don't commit actual database!)
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs (IMPORTANT: Don't commit logs to production!)
+logs/
+*.log
+fitness_tracker.log
+security_audit.log
+
+# Development documentation (Keep in dev, not in prod)
+*_SUMMARY.md
+*_FIX.md
+*_UPDATE.md
+*_IMPROVEMENTS.md
+*_REDESIGN.md
+*_IMPLEMENTATION.md
+*_TRACKING.md
+*_AUDIT.md
+*_ACTION_PLAN.md
+*_QUICK_REFERENCE.md
+AUTH_REDIRECT_FIX.md
+BALANCE_TAB_MOVE_SUMMARY.md
+BEFORE_AFTER_COMPARISON.md
+BODY_PART_BALANCE_FEATURE.md
+CHANGELOG.md
+CSP_JQUERY_FIX.md
+DASHBOARD_*.md
+DATE_SELECTOR_*.md
+DECIMAL_FLOAT_FIX.md
+DEV_QUICK_START.md
+ENHANCED_TEST_DATA_SUMMARY.md
+FIXES_*.md
+HOW_TO_*.md
+LOGGING_*.md
+LOGIN_REDIRECT_FIX.md
+PROFESSIONAL_REDESIGN.md
+PROGRESS_*.md
+QUICK_FIX_*.md
+REGISTRATION_UPDATE.md
+SECURITY_*.md
+TAB_NAVIGATION_IMPROVEMENTS.md
+TEST_DATA_DOCUMENTATION.md
+WORKOUT_LOGGER_IMPROVEMENTS.md
+
+# Node.js / Client
+node_modules/
+client/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+client/package-lock.json
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+tests/__pycache__/
+
+# Docker development files
+.dockerignore
+
+# Temporary files
+*.tmp
+*.bak
+
+# OS specific
+.DS_Store
+Thumbs.db

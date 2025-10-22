@@ -25,7 +25,9 @@ class User(db.Model, UserMixin):
     # New Fields for Fitness & Lifestyle
     height_cm = db.Column(db.Float)  # Height in cm
     weight_kg = db.Column(db.Float)  # Weight in kg
-    fitness_goal = db.Column(db.String(50))  # E.g., "Weight Loss", "Muscle Gain", etc.
+    body_fat_percentage = db.Column(db.Float)
+    fitness_goal = db.Column(db.Enum('Weight Loss', 'Muscle Gain', 'Maintenance', 'Improved Endurance', name='fitness_goal_enum'))
+    activity_level = db.Column(db.Enum('Sedentary', 'Lightly Active', 'Moderately Active', 'Very Active', 'Super Active', name='activity_level_enum'))
     dietary_preferences = db.Column(db.String(255))  # E.g., "Vegan", "Low Carb", etc.
     preferred_workout_time = db.Column(db.Time)  # Preferred time for workouts (e.g., '06:00:00')
     
@@ -172,6 +174,46 @@ class Workout(db.Model):
             cls.user_id == user_id,
             cls.date == date.date()
         ).all()
+    
+    @classmethod
+    def calculate_consecutive_workout_days(cls, user_id):
+        """Calculate the current workout streak (consecutive days with workouts)"""
+        from datetime import date, timedelta
+        
+        # Get all workout dates for the user, ordered by date descending
+        workouts = cls.query.filter(
+            cls.user_id == user_id
+        ).order_by(cls.date.desc()).all()
+        
+        if not workouts:
+            return 0
+        
+        # Get unique dates (in case multiple workouts on same day)
+        workout_dates = sorted(set(w.date for w in workouts), reverse=True)
+        
+        # Check if the most recent workout was today or yesterday
+        today = date.today()
+        if workout_dates[0] > today:
+            # Future workout logged, start from there
+            current_date = workout_dates[0]
+        elif workout_dates[0] == today or workout_dates[0] == today - timedelta(days=1):
+            # Streak is active
+            current_date = today
+        else:
+            # Streak is broken (no workout today or yesterday)
+            return 0
+        
+        # Count consecutive days
+        streak = 0
+        for workout_date in workout_dates:
+            if workout_date == current_date or workout_date == current_date - timedelta(days=1):
+                streak += 1
+                current_date = workout_date - timedelta(days=1)
+            else:
+                # Gap in streak
+                break
+        
+        return streak
 
 
 
@@ -197,6 +239,7 @@ class Exercise(db.Model):
     __tablename__ = 'Exercises'
     exercise_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     workout_id = db.Column(db.Integer, db.ForeignKey('Workouts.workout_id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('Users.user_id'), nullable=False)
     body_part_id = db.Column(db.Integer, db.ForeignKey('BodyParts.body_part_id'))
     standard_exercise_id = db.Column(db.Integer, db.ForeignKey('StandardExercises.standard_exercise_id'), nullable=True)
     custom_exercise_id = db.Column(db.Integer, db.ForeignKey('CustomExercises.custom_exercise_id'), nullable=True)
@@ -301,4 +344,25 @@ class LegalDocument(db.Model):
 
     def __repr__(self):
         return f"<LegalDocument {self.document_type} v{self.version}>"
+
+
+class MotivationalQuote(db.Model):
+    __tablename__ = 'motivational_quotes'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    quote_text = db.Column(db.Text, nullable=False)
+    author = db.Column(db.String(100), nullable=False)
+    category = db.Column(db.String(50))  # e.g., 'motivation', 'strength', 'perseverance'
+    active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=db.func.now())
+
+    def __repr__(self):
+        return f"<MotivationalQuote by {self.author}>"
+    
+    @staticmethod
+    def get_random_quote():
+        """Get a random active quote"""
+        import random
+        quotes = MotivationalQuote.query.filter_by(active=True).all()
+        return random.choice(quotes) if quotes else None
     

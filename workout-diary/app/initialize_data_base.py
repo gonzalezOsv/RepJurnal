@@ -1,58 +1,115 @@
 import pymysql
-import os # Import the 'os' module
+import os
+import logging
+
+# Create a logger for database initialization
+logger = logging.getLogger('database_init')
+logger.setLevel(logging.INFO)
+
+# Console handler for database init (since app logger may not be ready yet)
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+console_formatter = logging.Formatter('[%(asctime)s] DB_INIT %(levelname)s: %(message)s')
+console_handler.setFormatter(console_formatter)
+logger.addHandler(console_handler)
+
 
 def initialize_database():
-    """Initialize the database for testing by running the SQL script."""
-    connection = None # Initialize connection to None
+    """
+    Initialize the database with schema from init_db.sql.
+    In development mode, also loads test_data.sql with sample users and workouts.
+    This runs on first startup in development/testing environments.
+    """
+    connection = None
     try:
-        print("initialize_database... start")
-        # IMPORTANT: Change 'localhost' to your MariaDB service name in Docker Compose
-        # If your docker-compose.yml has 'mariadb:', use 'mariadb' here.
+        logger.info("Database initialization starting...")
+        
+        # Get credentials from environment or use defaults for development
+        db_host = os.getenv('DB_HOST', 'db')
+        db_user = os.getenv('DB_USER', 'flaskuser')
+        db_password = os.getenv('DB_PASSWORD', 'flaskpassword')
+        db_name = os.getenv('DB_NAME', 'fitness_tracker')
+        flask_env = os.getenv('FLASK_ENV', 'production')
+        
         connection = pymysql.connect(
-            host='db',             # <--- CHANGE THIS from 'localhost'
-            user='flaskuser',
-            password='flaskpassword',
-            database='fitness_tracker'
+            host=db_host,
+            user=db_user,
+            password=db_password,
+            database=db_name
         )
-        print("initialize_database... connected")
+        logger.info("Database connection established")
 
-        # The script_path line will depend on your exact project structure.
-        # Assuming 'scripts' is a directory at the same level as 'app'
-        # and you're running from the root of your project:
-        script_path = os.path.join('app', 'scripts', 'init_db.sql')
-        # OR, if 'scripts' is inside 'app' (like app/scripts/init_db.sql)
-        # and initialize_database.py is also inside 'app', then:
-        # script_path = os.path.join(os.path.dirname(__file__), 'scripts', 'init_db.sql')
-        # Let's assume the latter for now, as it's more robust for package structure
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        script_path = os.path.join(script_dir, 'scripts', 'init_db.sql')
+        # Get the directory where this file is located (app/)
+        # Then go up one level to workout-diary/ and into scripts/
+        app_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(app_dir)  # Go up from app/ to workout-diary/
+        script_path = os.path.join(project_root, 'scripts', 'init_db.sql')
+        test_data_path = os.path.join(project_root, 'scripts', 'test_data.sql')
 
         with connection.cursor() as cursor:
             # Check if the SQL script file exists
             if not os.path.exists(script_path):
-                print(f"Error: SQL script not found at {script_path}")
-                return # Exit if script not found
-
+                logger.error(f"SQL script not found at {script_path}")
+                return  # Exit if script not found
+            
+            logger.info(f"Loading SQL script from {script_path}")
+            
             with open(script_path, 'r') as f:
                 sql_script = f.read()
+            
+            statement_count = 0
+            error_count = 0
+            
             for statement in sql_script.split(';'):
                 if statement.strip():
                     try:
                         cursor.execute(statement)
+                        statement_count += 1
                     except pymysql.Error as sql_err:
-                        print(f"Error executing SQL statement: {statement.strip()} - {sql_err}")
-                        # Depending on your needs, you might want to raise the error or continue
+                        error_count += 1
+                        logger.warning(f"Error executing SQL statement #{statement_count}: {sql_err}")
+                        # Don't log the full statement as it might contain sensitive data
+            
             connection.commit()
-        print("Database initialized successfully.")
-    except pymysql.Error as db_err: # Catch specific PyMySQL errors
-        print(f"Error connecting to or initializing database: {db_err}")
-    except FileNotFoundError:
-        print(f"Error: SQL script 'init_db.sql' not found at expected path: {script_path}")
-    except Exception as e: # Catch any other unexpected errors
-        print(f"An unexpected error occurred during database initialization: {e}")
+            logger.info(f"Database initialized successfully. Executed {statement_count} statements ({error_count} errors)")
+            
+            # Load test data in development mode
+            if flask_env == 'development' and os.path.exists(test_data_path):
+                logger.info(f"🔧 Development mode detected - Loading test data from {test_data_path}")
+                
+                with open(test_data_path, 'r') as f:
+                    test_sql_script = f.read()
+                
+                test_statement_count = 0
+                test_error_count = 0
+                
+                for statement in test_sql_script.split(';'):
+                    if statement.strip():
+                        try:
+                            cursor.execute(statement)
+                            test_statement_count += 1
+                        except pymysql.Error as sql_err:
+                            test_error_count += 1
+                            logger.warning(f"Error executing test data statement #{test_statement_count}: {sql_err}")
+                
+                connection.commit()
+                logger.info(f"✅ Test data loaded successfully! Executed {test_statement_count} statements ({test_error_count} errors)")
+                logger.info("=" * 60)
+                logger.info("🎉 DEVELOPMENT MODE - Test Users Available:")
+                logger.info("  Username: tom101    | Password: vL5MYe7HdD4bhmY##")
+                logger.info("  Username: jess101   | Password: vL5MYe7HdD4bhmY##")
+                logger.info("  Username: danny101  | Password: vL5MYe7HdD4bhmY##")
+                logger.info("=" * 60)
+            
+    except pymysql.Error as db_err:  # Catch specific PyMySQL errors
+        logger.error(f"Database error during initialization: {db_err}")
+    except FileNotFoundError as fnf_err:
+        logger.error(f"SQL script file not found: {fnf_err}")
+    except Exception as e:  # Catch any other unexpected errors
+        logger.error(f"Unexpected error during database initialization: {e}", exc_info=True)
     finally:
         # Only attempt to close the connection if it was successfully established
         if connection:
             connection.close()
-            print("Database connection closed.")
-        print("initialize_database... end")
+            logger.info("Database connection closed")
+        logger.info("Database initialization complete")

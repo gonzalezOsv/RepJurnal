@@ -1,26 +1,40 @@
+-- ===================================
+-- FITNESS TRACKER - PRODUCTION SCHEMA
+-- ===================================
+-- This file contains ONLY the database schema and essential reference data
+-- For test data, see test_data.sql
+-- ===================================
+
 -- Create database (if not already created)
-drop database fitness_tracker;
+-- WARNING: Do NOT uncomment the drop command below in production!
+-- DROP DATABASE fitness_tracker;
 CREATE DATABASE IF NOT EXISTS fitness_tracker;
 
 -- Use the database
 USE fitness_tracker;
 
--- Drop and recreate tables for clean testing
-DROP TABLE IF EXISTS users;
-DROP TABLE IF EXISTS UserMetrics;
-DROP TABLE IF EXISTS Workouts;
+-- ===================================
+-- DROP EXISTING TABLES (For clean setup)
+-- ===================================
 DROP TABLE IF EXISTS Exercises;
-
-DROP TABLE IF EXISTS legal_documents;
+DROP TABLE IF EXISTS CustomExercises;
+DROP TABLE IF EXISTS Workouts;
+DROP TABLE IF EXISTS StandardExercises;
+DROP TABLE IF EXISTS BodyParts;
 DROP TABLE IF EXISTS user_legal_acceptance;
-DROP TABLE IF EXISTS BodyParts; 
-drop Table if EXISTS CustomExercises; 
+DROP TABLE IF EXISTS legal_documents;
+DROP TABLE IF EXISTS PhysicalStats;
+DROP TABLE IF EXISTS Users;
 
-CREATE TABLE 
-  IF NOT EXISTS Users (
+-- ===================================
+-- CREATE TABLES - SCHEMA ONLY
+-- ===================================
+
+-- Users Table
+CREATE TABLE IF NOT EXISTS Users (
     user_id INT AUTO_INCREMENT PRIMARY KEY,
-    username VARCHAR(50) NOT NULL,
-    email VARCHAR(100) NOT NULL,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    email VARCHAR(100) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     first_name VARCHAR(50),
     last_name VARCHAR(50),
@@ -46,40 +60,42 @@ CREATE TABLE
     preferred_workout_time TIME,
     signup_source VARCHAR(100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_username (username),
+    INDEX idx_email (email)
 );
 
-
-
-CREATE TABLE
-  IF NOT EXISTS PhysicalStats (
+-- Physical Stats Table
+CREATE TABLE IF NOT EXISTS PhysicalStats (
     body_id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT,
+    user_id INT NOT NULL,
     height FLOAT,
     weight FLOAT,
     body_fat_percentage FLOAT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES Users (user_id)
-  );
-
-
-
-
-CREATE TABLE
- IF NOT EXISTS Workouts (
-    workout_id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT,
-    date DATE,
-    workout_name VARCHAR(50),
-    notes TEXT,
-    FOREIGN KEY (user_id) REFERENCES Users (user_id)
-  );
-  CREATE TABLE IF NOT EXISTS BodyParts (
-    body_part_id INT AUTO_INCREMENT PRIMARY KEY,
-    body_part_name VARCHAR(50) UNIQUE NOT NULL
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+    INDEX idx_user_date (user_id, created_at)
 );
 
--- Create table for standard exercises
+-- Workouts Table
+CREATE TABLE IF NOT EXISTS Workouts (
+    workout_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    date DATE NOT NULL,
+    workout_name VARCHAR(50),
+    notes TEXT,
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+    INDEX idx_user_date (user_id, date)
+);
+
+-- Body Parts Table (Reference Data)
+CREATE TABLE IF NOT EXISTS BodyParts (
+    body_part_id INT AUTO_INCREMENT PRIMARY KEY,
+    body_part_name VARCHAR(50) UNIQUE NOT NULL,
+    INDEX idx_name (body_part_name)
+);
+
+-- Standard Exercises Table (Reference Data)
 CREATE TABLE IF NOT EXISTS StandardExercises (
     standard_exercise_id INT AUTO_INCREMENT PRIMARY KEY,
     body_part_id INT NOT NULL,
@@ -87,99 +103,76 @@ CREATE TABLE IF NOT EXISTS StandardExercises (
     description TEXT,
     is_compound BOOLEAN DEFAULT FALSE,
     FOREIGN KEY (body_part_id) REFERENCES BodyParts(body_part_id),
-    UNIQUE KEY unique_exercise (exercise_name, body_part_id)
-); 
+    UNIQUE KEY unique_exercise (exercise_name, body_part_id),
+    INDEX idx_body_part (body_part_id)
+);
 
-CREATE TABLE 
-  IF NOT EXISTS CustomExercises (
+-- Custom Exercises Table
+CREATE TABLE IF NOT EXISTS CustomExercises (
     custom_exercise_id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     body_part_id INT NOT NULL,
     exercise_name VARCHAR(50) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES Users(user_id),
-    FOREIGN KEY (body_part_id) REFERENCES BodyParts(body_part_id)
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (body_part_id) REFERENCES BodyParts(body_part_id),
+    INDEX idx_user (user_id)
 );
 
-CREATE TABLE Exercises (
+-- Exercises Table
+CREATE TABLE IF NOT EXISTS Exercises (
     exercise_id INT AUTO_INCREMENT PRIMARY KEY,
     workout_id INT NOT NULL,
+    user_id INT NOT NULL,
     body_part_id INT,
-    exercise_name VARCHAR(50), -- For standard exercises
-    custom_exercise_id INT NULL, -- For custom exercises
+    exercise_name VARCHAR(50),
+    standard_exercise_id INT NULL,
+    custom_exercise_id INT NULL,
     sets INT NOT NULL,
     reps INT NOT NULL,
     weight FLOAT NOT NULL,
     date DATE NOT NULL,
-
-    standard_exercise_id INT NULL,
-    FOREIGN KEY (standard_exercise_id) REFERENCES StandardExercises(standard_exercise_id),
-
-    FOREIGN KEY (workout_id) REFERENCES Workouts(workout_id),
+    FOREIGN KEY (workout_id) REFERENCES Workouts(workout_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
     FOREIGN KEY (body_part_id) REFERENCES BodyParts(body_part_id),
-    FOREIGN KEY (custom_exercise_id) REFERENCES CustomExercises(custom_exercise_id)
+    FOREIGN KEY (standard_exercise_id) REFERENCES StandardExercises(standard_exercise_id),
+    FOREIGN KEY (custom_exercise_id) REFERENCES CustomExercises(custom_exercise_id),
+    INDEX idx_workout (workout_id),
+    INDEX idx_user_date (user_id, date)
 );
 
+-- Legal Documents Table (Reference Data)
+CREATE TABLE IF NOT EXISTS legal_documents (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    document_type VARCHAR(50) NOT NULL,
+    version VARCHAR(20) NOT NULL,
+    content TEXT NOT NULL,
+    active BOOLEAN DEFAULT TRUE,
+    effective_date DATETIME NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_by VARCHAR(100),
+    INDEX idx_type_active (document_type, active)
+);
 
+-- User Legal Acceptance Table
+CREATE TABLE IF NOT EXISTS user_legal_acceptance (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    document_id INT NOT NULL,
+    accepted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (document_id) REFERENCES legal_documents(id) ON DELETE RESTRICT,
+    INDEX idx_user_doc (user_id, document_id)
+);
 
--- Add some test data passwd : vL5MYe7HdD4bhmY##
-INSERT INTO Users (
-  username, 
-  email, 
-  password_hash, 
-  first_name, 
-  last_name, 
-  date_of_birth, 
-  gender, 
-  phone_number, 
-  address, 
-  height_cm, 
-  weight_kg, 
-  body_fat_percentage, 
-  fitness_goal, 
-  activity_level, 
-  dietary_preferences, 
-  medical_conditions, 
-  allergies, 
-  injuries, 
-  target_weight_kg, 
-  target_body_fat_percentage, 
-  weekly_weight_loss_goal, 
-  smoking_status, 
-  alcohol_consumption, 
-  motivation_level, 
-  preferred_workout_time, 
-  signup_source
-) VALUES
-  ('tom101', 'Tom@example.com', 
-   'scrypt:32768:8:1$KcMXQVWNnf67cSDy$81ae732d3c99a2a00ce8d98d868b1760be8eafab4d893d934cd14c703526fc2babaef653f5b82bd5c288a8edd67c27914c662db6fbaacb86fed12f6b09b5535a', 
-   'Tom', 'Doe', '1990-01-01', 'Male', '123-456-7890', '123 Main St, City, Country',
-   180, 80, 18.5, 'Muscle Gain', 'Moderately Active', 'No Restrictions', NULL, NULL, NULL, 75, 15.0, 0.5, 'Non-Smoker', 'Occasional', 'High', '18:00:00', 'Google'),
-   
-  ('jess101', 'jess@example.com', 
-   'scrypt:32768:8:1$KcMXQVWNnf67cSDy$81ae732d3c99a2a00ce8d98d868b1760be8eafab4d893d934cd14c703526fc2babaef653f5b82bd5c288a8edd67c27914c662db6fbaacb86fed12f6b09b5535a', 
-   'Jess', 'Smith', '1985-02-02', 'Female', '987-654-3210', '456 Oak St, City, Country',
-   165, 68, 22.0, 'Weight Loss', 'Lightly Active', 'Vegetarian', NULL, 'Peanuts', NULL, 60, 18.0, 0.8, 'Non-Smoker', 'None', 'Moderate', '07:00:00', 'Friend'),
-   
-  ('danny101', 'danny@example.com', 
-   'scrypt:32768:8:1$KcMXQVWNnf67cSDy$81ae732d3c99a2a00ce8d98d868b1760be8eafab4d893d934cd14c703526fc2babaef653f5b82bd5c288a8edd67c27914c662db6fbaacb86fed12f6b09b5535a', 
-   'Danny', 'Johnson', '2000-03-03', 'Other', '555-555-5555', '789 Pine St, City, Country',
-   175, 72, 20.0, 'Improved Endurance', 'Very Active', 'Keto', 'Asthma', NULL, 'Knee Injury', 70, 18.5, 0.4, 'Occasional Smoker', 'Moderate', 'Low', '20:00:00', 'Ad');
+-- ===================================
+-- ESSENTIAL REFERENCE DATA
+-- ===================================
 
-INSERT INTO PhysicalStats (user_id, height, weight, body_fat_percentage, created_at) VALUES
-  (1, 170.0, 70.0, 15.0, CURDATE()),
-  (2, 165.0, 60.0, 20.0, CURDATE() - INTERVAL 1 DAY),
-  (3, 180.0, 80.0, 12.0, CURDATE() - INTERVAL 2 DAY);
-
-
-INSERT INTO Workouts (user_id, date, workout_name, notes) VALUES
-  (1, CURDATE(), 'Chest Day', 'Felt strong today!'),
-  (2, CURDATE() - INTERVAL 1 DAY, 'Leg Day', 'Pushed through some tough sets.'),
-  (3, CURDATE() - INTERVAL 2 DAY, 'Back and Biceps', 'Great pump!');
-
--- add body parts to the table: 
-INSERT IGNORE INTO BodyParts (body_part_name)
-VALUES 
+-- Body Parts (Required for app to function)
+INSERT IGNORE INTO BodyParts (body_part_name) VALUES 
     ('Chest'),
     ('Back'),
     ('Legs'),
@@ -214,307 +207,8 @@ VALUES
     ('Compound'),
     ('Rear Delts'),
     ('Pecs');
- 
-INSERT INTO Exercises (workout_id, body_part_id, exercise_name, sets, reps, weight, date) VALUES
-  -- Chest
-  (1, (SELECT body_part_id FROM BodyParts WHERE body_part_name = 'Chest'), 'Bench Press', 4, 8, 80.0, CURDATE()),
-  (2, (SELECT body_part_id FROM BodyParts WHERE body_part_name = 'Chest'), 'Incline Dumbbell Press', 3, 10, 25.0, CURDATE()),
 
-  -- Legs (General)
-  (3, (SELECT body_part_id FROM BodyParts WHERE body_part_name = 'Legs'), 'Squats', 4, 10, 100.0, CURDATE() - INTERVAL 1 DAY),
-  (1, (SELECT body_part_id FROM BodyParts WHERE body_part_name = 'Legs'), 'Leg Press', 3, 12, 180.0, CURDATE() - INTERVAL 1 DAY),
-
-  -- Back
-  (2, (SELECT body_part_id FROM BodyParts WHERE body_part_name = 'Back'), 'Pull Ups', 3, 8, 0, CURDATE() - INTERVAL 2 DAY),
-
-  -- Biceps (Replaced "Arms" with "Biceps")
-  (3, (SELECT body_part_id FROM BodyParts WHERE body_part_name = 'Biceps'), 'Barbell Curl', 3, 12, 30.0, CURDATE() - INTERVAL 2 DAY),
-
-  -- Additional Dummy Data for Other Body Parts
-  -- Shoulders
-  (3, (SELECT body_part_id FROM BodyParts WHERE body_part_name = 'Shoulders'), 'Overhead Press', 4, 8, 50.0, CURDATE() - INTERVAL 3 DAY),
-  (3, (SELECT body_part_id FROM BodyParts WHERE body_part_name = 'Shoulders'), 'Lateral Raises', 3, 12, 15.0, CURDATE() - INTERVAL 3 DAY),
-
-  -- Triceps
-  (3, (SELECT body_part_id FROM BodyParts WHERE body_part_name = 'Triceps'), 'Tricep Dips', 3, 10, 0, CURDATE() - INTERVAL 4 DAY),
-  (3, (SELECT body_part_id FROM BodyParts WHERE body_part_name = 'Triceps'), 'Close-Grip Bench Press', 4, 8, 70.0, CURDATE() - INTERVAL 4 DAY),
-
-  -- Abs
-  (3, (SELECT body_part_id FROM BodyParts WHERE body_part_name = 'Abs'), 'Planks', 3, 60, 0, CURDATE() - INTERVAL 5 DAY), -- 60 seconds hold
-  (3, (SELECT body_part_id FROM BodyParts WHERE body_part_name = 'Abs'), 'Russian Twists', 3, 20, 10.0, CURDATE() - INTERVAL 5 DAY), -- 20 reps per side
-
-  -- Calves
-  (3, (SELECT body_part_id FROM BodyParts WHERE body_part_name = 'Calves'), 'Calf Raises', 4, 15, 50.0, CURDATE() - INTERVAL 6 DAY),
-  (3, (SELECT body_part_id FROM BodyParts WHERE body_part_name = 'Calves'), 'Seated Calf Raises', 3, 20, 40.0, CURDATE() - INTERVAL 6 DAY),
-
-  -- Glutes
-  (3, (SELECT body_part_id FROM BodyParts WHERE body_part_name = 'Glutes'), 'Hip Thrusts', 4, 10, 120.0, CURDATE() - INTERVAL 7 DAY),
-  (3, (SELECT body_part_id FROM BodyParts WHERE body_part_name = 'Glutes'), 'Glute Bridges', 3, 12, 80.0, CURDATE() - INTERVAL 7 DAY),
-
-  -- Full Body
-  (3, (SELECT body_part_id FROM BodyParts WHERE body_part_name = 'Full Body'), 'Burpees', 4, 15, 0, CURDATE() - INTERVAL 8 DAY),
-  (3, (SELECT body_part_id FROM BodyParts WHERE body_part_name = 'Full Body'), 'Clean and Press', 5, 5, 60.0, CURDATE() - INTERVAL 8 DAY),
-
-  -- Cardio
-  (3, (SELECT body_part_id FROM BodyParts WHERE body_part_name = 'Cardio'), 'Running', 1, 30, 0, CURDATE() - INTERVAL 9 DAY), -- 30 minutes
-  (3, (SELECT body_part_id FROM BodyParts WHERE body_part_name = 'Cardio'), 'Rowing', 1, 20, 0, CURDATE() - INTERVAL 9 DAY), -- 20 minutes
-
-  -- Flexibility
-  (3, (SELECT body_part_id FROM BodyParts WHERE body_part_name = 'Flexibility'), 'Yoga', 1, 60, 0, CURDATE() - INTERVAL 10 DAY), -- 60 minutes
-  (3, (SELECT body_part_id FROM BodyParts WHERE body_part_name = 'Flexibility'), 'Dynamic Stretching', 1, 15, 0, CURDATE() - INTERVAL 10 DAY); -- 15 minutes
-
-
--- Create table for legal documents (terms, privacy policy, etc)
-CREATE TABLE IF NOT EXISTS
-  legal_documents (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    document_type VARCHAR(50) NOT NULL, -- 'terms', 'privacy', etc.
-    version VARCHAR(20) NOT NULL,
-    content TEXT NOT NULL,
-    active BOOLEAN DEFAULT true,
-    effective_date DATETIME NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    created_by VARCHAR(100),
-    INDEX idx_type_active (document_type, active)
-);
-
--- Create table to track user acceptance of terms
-CREATE TABLE IF NOT EXISTS 
-  user_legal_acceptance (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    user_id INT NOT NULL,
-    document_id INT NOT NULL,
-    accepted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    ip_address VARCHAR(45),
-    user_agent TEXT,
-    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE ON UPDATE CASCADE,
-    FOREIGN KEY (document_id) REFERENCES legal_documents(id) ON DELETE RESTRICT ON UPDATE CASCADE,
-    INDEX idx_user_doc (user_id, document_id)
-);
-
-
-
-
-INSERT INTO legal_documents (
-  document_type,
-  version,
-  content,
-  active,
-  effective_date,
-  created_by
-)
-VALUES (
-  'privacy',
-  '1.0',
-  '<h1>Privacy Policy</h1>
-  <p><strong>Last Updated:</strong> [Date]</p>
-
-  <h2>1. Information We Collect</h2>
-  <h3>1.1 Personal Information</h3>
-  <ul>
-    <li>Name and email address</li>
-    <li>Age and gender</li>
-    <li>Height and weight</li>
-    <li>Fitness goals</li>
-  </ul>
-  <h3>1.2 Usage Data</h3>
-  <ul>
-    <li>Workout records</li>
-    <li>Exercise preferences</li>
-    <li>App usage patterns</li>
-    <li>Device information</li>
-  </ul>
-
-  <h2>2. How We Use Your Information</h2>
-  <h3>2.1 Service Provision</h3>
-  <ul>
-    <li>Account management</li>
-    <li>Progress tracking</li>
-    <li>Workout recommendations</li>
-    <li>Service improvements</li>
-  </ul>
-  <h3>2.2 Communications</h3>
-  <ul>
-    <li>Service updates</li>
-    <li>Feature announcements</li>
-    <li>Support responses</li>
-    <li>Marketing (with consent)</li>
-  </ul>
-
-  <h2>3. Data Storage and Security</h2>
-  <h3>3.1 Storage</h3>
-  <ul>
-    <li>Secure servers</li>
-    <li>Encrypted transmission</li>
-    <li>Regular backups</li>
-    <li>Industry-standard protection</li>
-  </ul>
-  <h3>3.2 Retention</h3>
-  <ul>
-    <li>Active account data retained</li>
-    <li>Deleted upon account closure</li>
-    <li>Some data retained for legal purposes</li>
-  </ul>
-
-  <h2>4. Data Sharing</h2>
-  <h3>4.1 We Never</h3>
-  <ul>
-    <li>Sell your personal data</li>
-    <li>Share without consent</li>
-    <li>Use for unauthorized purposes</li>
-  </ul>
-  <h3>4.2 We May Share</h3>
-  <ul>
-    <li>For service provision</li>
-    <li>With your consent</li>
-    <li>As required by law</li>
-  </ul>
-
-  <h2>5. Your Rights</h2>
-  <p>You have the right to:</p>
-  <ul>
-    <li>Access your data</li>
-    <li>Correct inaccuracies</li>
-    <li>Delete your data</li>
-    <li>Export your data</li>
-    <li>Withdraw consent</li>
-  </ul>
-
-  <h2>6. Cookies and Tracking</h2>
-  <p>We use:</p>
-  <ul>
-    <li>Essential cookies</li>
-    <li>Analytics cookies</li>
-    <li>Preference cookies</li>
-  </ul>
-  <p>You can control cookie settings.</p>
-
-  <h2>7. Children\'s Privacy</h2>
-  <ul>
-    <li>Service not intended for under 18</li>
-    <li>We don\'t knowingly collect children\'s data</li>
-    <li>Parents can request data deletion</li>
-  </ul>
-
-  <h2>8. Changes to Policy</h2>
-  <ul>
-    <li>We may update this policy</li>
-    <li>Notice of significant changes</li>
-    <li>Continued use implies acceptance</li>
-  </ul>
-
-  <h2>9. Contact Us</h2>
-  <p>For privacy questions, contact us at [email].</p>',
-  true,
-  CURDATE(),
-  'Admin'
-);
-
-
-INSERT INTO legal_documents (
-  document_type,
-  version,
-  content,
-  active,
-  effective_date,
-  created_by
-)
-VALUES (
-  'terms',
-  '1.0',
-  '<h1>Terms and Conditions</h1>
-  <p><strong>Last Updated:</strong> [Date]</p>
-
-  <h2>1. Acceptance of Terms</h2>
-  <p>By accessing and using the Fitness Tracker application ("the Service"), you agree to be bound by these Terms and Conditions. If you do not agree to these terms, please do not use the Service.</p>
-
-  <h2>2. User Accounts</h2>
-  <h3>2.1 Registration</h3>
-  <ul>
-    <li>You must register for an account to use the Service</li>
-    <li>You must provide accurate and complete information</li>
-    <li>You are responsible for maintaining the security of your account</li>
-    <li>You must be at least 18 years old to use the Service</li>
-  </ul>
-  <h3>2.2 Account Security</h3>
-  <ul>
-    <li>Keep your password secure</li>
-    <li>Notify us immediately of any unauthorized access</li>
-    <li>You are responsible for all activities under your account</li>
-  </ul>
-
-  <h2>3. Service Usage</h2>
-  <h3>3.1 Proper Use</h3>
-  <ul>
-    <li>Use for personal fitness tracking only</li>
-    <li>Do not share account credentials</li>
-    <li>Do not misuse or abuse the Service</li>
-  </ul>
-  <h3>3.2 Prohibited Activities</h3>
-  <ul>
-    <li>No unauthorized access attempts</li>
-    <li>No interference with Service operation</li>
-    <li>No collection of user data</li>
-    <li>No transmission of harmful code</li>
-  </ul>
-
-  <h2>4. User Data</h2>
-  <h3>4.1 Data Collection</h3>
-  <ul>
-    <li>We collect fitness and usage data</li>
-    <li>Data is stored securely</li>
-    <li>See Privacy Policy for details</li>
-  </ul>
-  <h3>4.2 Data Usage</h3>
-  <ul>
-    <li>Used to provide and improve Service</li>
-    <li>May be anonymized for analytics</li>
-    <li>Never sold to third parties</li>
-  </ul>
-
-  <h2>5. Modifications</h2>
-  <h3>5.1 Service Changes</h3>
-  <ul>
-    <li>We may modify the Service at any time</li>
-    <li>We will notify users of significant changes</li>
-    <li>Continued use implies acceptance of changes</li>
-  </ul>
-  <h3>5.2 Terms Changes</h3>
-  <ul>
-    <li>We may update these terms</li>
-    <li>Users will be notified of changes</li>
-    <li>Continued use implies acceptance</li>
-  </ul>
-
-  <h2>6. Termination</h2>
-  <ul>
-    <li>We reserve the right to suspend or terminate accounts</li>
-    <li>Delete inactive accounts</li>
-    <li>Modify or discontinue the Service</li>
-  </ul>
-
-  <h2>7. Disclaimer</h2>
-  <p>Service provided "as is". No fitness advice guaranteed. Consult a healthcare provider before starting an exercise program.</p>
-
-  <h2>8. Limitation of Liability</h2>
-  <p>We are not liable for injuries during exercise, data loss or corruption, or service interruptions.</p>
-
-  <h2>9. Contact</h2>
-  <p>Questions about these terms should be sent to [contact email].</p>',
-  true,
-  CURDATE(),
-  'Admin'
-);
-
-
-
-
-
-
--- Insert basic body parts
-INSERT INTO BodyParts (body_part_name) VALUES ON DUPLICATE KEY UPDATE body_part_name = VALUES(body_part_name);
-
--- Insert standard exercises
+-- Standard Exercises (Required for app to function)
 INSERT INTO StandardExercises (body_part_id, exercise_name, description, is_compound) VALUES
 -- Chest
 ((SELECT body_part_id FROM BodyParts WHERE body_part_name = 'Chest'), 'Bench Press', 'Barbell bench press for chest development', TRUE),
@@ -612,3 +306,85 @@ INSERT INTO StandardExercises (body_part_id, exercise_name, description, is_comp
 ON DUPLICATE KEY UPDATE 
     description = VALUES(description),
     is_compound = VALUES(is_compound);
+
+-- Legal Documents (Required for compliance)
+INSERT INTO legal_documents (document_type, version, content, active, effective_date, created_by) VALUES
+-- Privacy Policy
+('privacy', '1.0', '<h1>Privacy Policy</h1>
+<p><strong>Last Updated:</strong> [Date]</p>
+<h2>1. Information We Collect</h2>
+<h3>1.1 Personal Information</h3>
+<ul><li>Name and email address</li><li>Age and gender</li><li>Height and weight</li><li>Fitness goals</li></ul>
+<h3>1.2 Usage Data</h3>
+<ul><li>Workout records</li><li>Exercise preferences</li><li>App usage patterns</li><li>Device information</li></ul>
+<h2>2. How We Use Your Information</h2>
+<h3>2.1 Service Provision</h3>
+<ul><li>Account management</li><li>Progress tracking</li><li>Workout recommendations</li><li>Service improvements</li></ul>
+<h3>2.2 Communications</h3>
+<ul><li>Service updates</li><li>Feature announcements</li><li>Support responses</li><li>Marketing (with consent)</li></ul>
+<h2>3. Data Storage and Security</h2>
+<h3>3.1 Storage</h3>
+<ul><li>Secure servers</li><li>Encrypted transmission</li><li>Regular backups</li><li>Industry-standard protection</li></ul>
+<h3>3.2 Retention</h3>
+<ul><li>Active account data retained</li><li>Deleted upon account closure</li><li>Some data retained for legal purposes</li></ul>
+<h2>4. Data Sharing</h2>
+<h3>4.1 We Never</h3>
+<ul><li>Sell your personal data</li><li>Share without consent</li><li>Use for unauthorized purposes</li></ul>
+<h3>4.2 We May Share</h3>
+<ul><li>For service provision</li><li>With your consent</li><li>As required by law</li></ul>
+<h2>5. Your Rights</h2>
+<p>You have the right to:</p>
+<ul><li>Access your data</li><li>Correct inaccuracies</li><li>Delete your data</li><li>Export your data</li><li>Withdraw consent</li></ul>
+<h2>6. Cookies and Tracking</h2>
+<p>We use:</p>
+<ul><li>Essential cookies</li><li>Analytics cookies</li><li>Preference cookies</li></ul>
+<p>You can control cookie settings.</p>
+<h2>7. Children\'s Privacy</h2>
+<ul><li>Service not intended for under 18</li><li>We don\'t knowingly collect children\'s data</li><li>Parents can request data deletion</li></ul>
+<h2>8. Changes to Policy</h2>
+<ul><li>We may update this policy</li><li>Notice of significant changes</li><li>Continued use implies acceptance</li></ul>
+<h2>9. Contact Us</h2>
+<p>For privacy questions, contact us at [email].</p>', TRUE, CURDATE(), 'Admin'),
+
+-- Terms and Conditions
+('terms', '1.0', '<h1>Terms and Conditions</h1>
+<p><strong>Last Updated:</strong> [Date]</p>
+<h2>1. Acceptance of Terms</h2>
+<p>By accessing and using the Fitness Tracker application ("the Service"), you agree to be bound by these Terms and Conditions. If you do not agree to these terms, please do not use the Service.</p>
+<h2>2. User Accounts</h2>
+<h3>2.1 Registration</h3>
+<ul><li>You must register for an account to use the Service</li><li>You must provide accurate and complete information</li><li>You are responsible for maintaining the security of your account</li><li>You must be at least 18 years old to use the Service</li></ul>
+<h3>2.2 Account Security</h3>
+<ul><li>Keep your password secure</li><li>Notify us immediately of any unauthorized access</li><li>You are responsible for all activities under your account</li></ul>
+<h2>3. Service Usage</h2>
+<h3>3.1 Proper Use</h3>
+<ul><li>Use for personal fitness tracking only</li><li>Do not share account credentials</li><li>Do not misuse or abuse the Service</li></ul>
+<h3>3.2 Prohibited Activities</h3>
+<ul><li>No unauthorized access attempts</li><li>No interference with Service operation</li><li>No collection of user data</li><li>No transmission of harmful code</li></ul>
+<h2>4. User Data</h2>
+<h3>4.1 Data Collection</h3>
+<ul><li>We collect fitness and usage data</li><li>Data is stored securely</li><li>See Privacy Policy for details</li></ul>
+<h3>4.2 Data Usage</h3>
+<ul><li>Used to provide and improve Service</li><li>May be anonymized for analytics</li><li>Never sold to third parties</li></ul>
+<h2>5. Modifications</h2>
+<h3>5.1 Service Changes</h3>
+<ul><li>We may modify the Service at any time</li><li>We will notify users of significant changes</li><li>Continued use implies acceptance of changes</li></ul>
+<h3>5.2 Terms Changes</h3>
+<ul><li>We may update these terms</li><li>Users will be notified of changes</li><li>Continued use implies acceptance</li></ul>
+<h2>6. Termination</h2>
+<ul><li>We reserve the right to suspend or terminate accounts</li><li>Delete inactive accounts</li><li>Modify or discontinue the Service</li></ul>
+<h2>7. Disclaimer</h2>
+<p>Service provided "as is". No fitness advice guaranteed. Consult a healthcare provider before starting an exercise program.</p>
+<h2>8. Limitation of Liability</h2>
+<p>We are not liable for injuries during exercise, data loss or corruption, or service interruptions.</p>
+<h2>9. Contact</h2>
+<p>Questions about these terms should be sent to [contact email].</p>', TRUE, CURDATE(), 'Admin')
+ON DUPLICATE KEY UPDATE 
+    content = VALUES(content),
+    active = VALUES(active);
+
+-- ===================================
+-- PRODUCTION SCHEMA COMPLETE
+-- ===================================
+-- For test data, run: mysql -u root -p fitness_tracker < test_data.sql
+-- ===================================

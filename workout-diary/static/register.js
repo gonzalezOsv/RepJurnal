@@ -160,6 +160,8 @@ $(document).ready(function() {
 
         // Gather form data
         const formData = {
+            first_name: $('#register-first-name').val(),
+            last_name: $('#register-last-name').val(),
             username: $('#register-username').val(),
             email: $('#register-email').val(),
             password: $passwordInput.val(),

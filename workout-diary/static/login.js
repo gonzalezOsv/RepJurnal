@@ -8,6 +8,12 @@ $(document).ready(function () {
     const $loadingSpinner = $('#loadingSpinner');
     
     // Password visibility toggle
+    $('#togglePassword').on('click', function() {
+        const $input = $('#login-password');
+        const type = $input.attr('type') === 'password' ? 'text' : 'password';
+        $input.attr('type', type);
+        $(this).text(type === 'password' ? '👁️' : '👁️‍🗨️');
+    });
 
     $('.toggle-password').on('click', function() {
         const $input = $($(this).data('target'));

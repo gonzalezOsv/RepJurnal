@@ -1,5 +1,4 @@
-
-from flask import Blueprint, jsonify, request, render_template
+from flask import Blueprint, jsonify, request, render_template, current_app
 from flask_login import login_required, current_user
 from .models import User, db, Workout, Exercise, BodyPart, StandardExercise, CustomExercise
 from datetime import date, timedelta, datetime
@@ -283,5 +282,280 @@ def workout_diversity():
     ).distinct().count()
     print("done... workout diversity")
     return jsonify({"unique_exercises": unique_exercises})
+
+
+# Exercise Progression Tracking Endpoints
+@metrics_bp.route('/api/exercise-progression/<exercise_name>', methods=['GET'])
+@login_required
+def get_exercise_progression(exercise_name):
+    """
+    Get progression data for a specific exercise (max weight over time).
+    Returns dates and max weights for charting.
+    """
+    print(f"loading... progression for {exercise_name}")
+    
+    try:
+        # Get progression data for the exercise
+        # Query for max weight per date
+        progression_data = db.session.query(
+            Exercise.date,
+            func.max(Exercise.weight).label('max_weight'),
+            func.sum(Exercise.weight * Exercise.reps * Exercise.sets).label('total_volume')
+        ).join(
+            StandardExercise,
+            Exercise.standard_exercise_id == StandardExercise.standard_exercise_id
+        ).filter(
+            Exercise.user_id == current_user.user_id,
+            StandardExercise.exercise_name == exercise_name
+        ).group_by(
+            Exercise.date
+        ).order_by(
+            Exercise.date
+        ).all()
+        
+        # Format the response
+        dates = [p.date.strftime('%Y-%m-%d') for p in progression_data]
+        max_weights = [float(p.max_weight) if p.max_weight else 0 for p in progression_data]
+        volumes = [float(p.total_volume) if p.total_volume else 0 for p in progression_data]
+        
+        # Calculate personal record
+        pr_weight = max(max_weights) if max_weights else 0
+        pr_date = dates[max_weights.index(pr_weight)] if max_weights else None
+        
+        print(f"done... progression for {exercise_name}")
+        
+        return jsonify({
+            'exercise_name': exercise_name,
+            'dates': dates,
+            'max_weights': max_weights,
+            'volumes': volumes,
+            'personal_record': {
+                'weight': pr_weight,
+                'date': pr_date
+            },
+            'total_sessions': len(dates)
+        })
+        
+    except Exception as e:
+        print(f"Error getting progression for {exercise_name}: {str(e)}")
+        return jsonify({
+            'error': f'Failed to load progression data: {str(e)}',
+            'exercise_name': exercise_name,
+            'dates': [],
+            'max_weights': [],
+            'volumes': [],
+            'personal_record': {'weight': 0, 'date': None},
+            'total_sessions': 0
+        }), 500
+
+
+@metrics_bp.route('/api/tracked-exercises', methods=['GET'])
+@login_required
+def get_tracked_exercises():
+    """
+    Get list of exercises the user wants to track.
+    Returns default exercises (Bench, Squat, Deadlift) plus user-selected custom ones.
+    """
+    # Default exercises to always track
+    default_exercises = ['Bench Press', 'Squats', 'Deadlift']
+    
+    # TODO: In the future, fetch from a UserTrackedExercises table
+    # For now, return defaults plus check which exercises user has actually performed
+    user_exercises = db.session.query(
+        StandardExercise.exercise_name,
+        func.count(Exercise.exercise_id).label('session_count'),
+        func.max(Exercise.date).label('last_performed')
+    ).join(
+        Exercise,
+        Exercise.standard_exercise_id == StandardExercise.standard_exercise_id
+    ).filter(
+        Exercise.user_id == current_user.user_id
+    ).group_by(
+        StandardExercise.exercise_name
+    ).having(
+        func.count(Exercise.exercise_id) >= 2  # At least 2 sessions to show progression
+    ).order_by(
+        func.count(Exercise.exercise_id).desc()
+    ).all()
+    
+    tracked = []
+    for exercise in user_exercises:
+        tracked.append({
+            'exercise_name': exercise.exercise_name,
+            'session_count': exercise.session_count,
+            'last_performed': exercise.last_performed.strftime('%Y-%m-%d') if exercise.last_performed else None,
+            'is_default': exercise.exercise_name in default_exercises
+        })
+    
+    return jsonify({
+        'tracked_exercises': tracked,
+        'default_exercises': default_exercises
+    })
+
+
+@metrics_bp.route('/api/available-exercises', methods=['GET'])
+@login_required
+def get_available_exercises():
+    """
+    Get list of all available exercises that can be tracked.
+    """
+    # Get all exercises the user has performed at least once
+    exercises = db.session.query(
+        StandardExercise.exercise_name,
+        BodyPart.body_part_name,
+        func.count(Exercise.exercise_id).label('times_performed')
+    ).join(
+        Exercise,
+        Exercise.standard_exercise_id == StandardExercise.standard_exercise_id
+    ).join(
+        BodyPart,
+        StandardExercise.body_part_id == BodyPart.body_part_id
+    ).filter(
+        Exercise.user_id == current_user.user_id
+    ).group_by(
+        StandardExercise.exercise_name,
+        BodyPart.body_part_name
+    ).order_by(
+        BodyPart.body_part_name,
+        StandardExercise.exercise_name
+    ).all()
+    
+    # Group by body part
+    by_body_part = {}
+    for ex in exercises:
+        if ex.body_part_name not in by_body_part:
+            by_body_part[ex.body_part_name] = []
+        by_body_part[ex.body_part_name].append({
+            'exercise_name': ex.exercise_name,
+            'times_performed': ex.times_performed
+        })
+    
+    return jsonify({
+        'exercises_by_body_part': by_body_part
+    })
+
+
+@metrics_bp.route('/api/body-part-balance')
+@login_required
+def body_part_balance():
+    """
+    Analyze workout balance across body parts over the last 7 days.
+    Returns frequency data and recommendations.
+    """
+    # Get last 7 days of workouts
+    seven_days_ago = datetime.now() - timedelta(days=7)
+    
+    # Query to get workout frequency per body part
+    body_part_frequency = db.session.query(
+        BodyPart.body_part_name,
+        func.count(func.distinct(func.date(Exercise.date))).label('days_worked')
+    ).join(
+        Exercise, Exercise.body_part_id == BodyPart.body_part_id
+    ).filter(
+        Exercise.user_id == current_user.user_id,
+        Exercise.date >= seven_days_ago.date()
+    ).group_by(
+        BodyPart.body_part_name
+    ).all()
+    
+    # Get all body parts for reference
+    all_body_parts = db.session.query(BodyPart.body_part_name).all()
+    all_body_part_names = {bp.body_part_name for bp in all_body_parts}
+    
+    # Build frequency map
+    frequency_map = {bp.body_part_name: bp.days_worked for bp in body_part_frequency}
+    
+    # Analyze and categorize body parts
+    overworked = []  # 4+ days in last 7 days
+    balanced = []    # 2-3 days in last 7 days
+    underworked = [] # 1 day in last 7 days
+    neglected = []   # 0 days in last 7 days
+    
+    # Major muscle groups to focus on
+    major_groups = {
+        'Chest', 'Back', 'Legs', 'Shoulders', 'Biceps', 'Triceps', 
+        'Abs', 'Glutes', 'Quads', 'Hamstrings', 'Calves'
+    }
+    
+    for body_part in all_body_part_names:
+        if body_part not in major_groups:
+            continue  # Skip minor/compound categories
+            
+        days = frequency_map.get(body_part, 0)
+        
+        if days >= 4:
+            status = 'overworked'
+            overworked.append({
+                'name': body_part,
+                'days_worked': days,
+                'status': status,
+                'color': 'red'
+            })
+        elif days >= 2:
+            status = 'balanced'
+            balanced.append({
+                'name': body_part,
+                'days_worked': days,
+                'status': status,
+                'color': 'green'
+            })
+        elif days == 1:
+            status = 'underworked'
+            underworked.append({
+                'name': body_part,
+                'days_worked': days,
+                'status': status,
+                'color': 'yellow'
+            })
+        else:
+            status = 'neglected'
+            neglected.append({
+                'name': body_part,
+                'days_worked': days,
+                'status': status,
+                'color': 'gray'
+            })
+    
+    # Generate recommendations
+    recommendations = []
+    
+    if overworked:
+        recommendations.append({
+            'type': 'warning',
+            'message': f"⚠️ You're overworking: {', '.join([bp['name'] for bp in overworked])}. Consider giving these muscle groups more rest to prevent injury and allow recovery."
+        })
+    
+    if neglected:
+        recommendations.append({
+            'type': 'alert',
+            'message': f"🎯 You haven't trained: {', '.join([bp['name'] for bp in neglected])}. Add these to your routine for balanced development."
+        })
+    
+    if underworked:
+        recommendations.append({
+            'type': 'info',
+            'message': f"💪 Consider increasing frequency for: {', '.join([bp['name'] for bp in underworked])}. These muscle groups could benefit from more attention."
+        })
+    
+    if balanced and not overworked and not neglected:
+        recommendations.append({
+            'type': 'success',
+            'message': f"✅ Great balance! You're training {', '.join([bp['name'] for bp in balanced])} with optimal frequency."
+        })
+    
+    return jsonify({
+        'overworked': overworked,
+        'balanced': balanced,
+        'underworked': underworked,
+        'neglected': neglected,
+        'recommendations': recommendations,
+        'summary': {
+            'total_body_parts_tracked': len(frequency_map),
+            'overworked_count': len(overworked),
+            'balanced_count': len(balanced),
+            'underworked_count': len(underworked),
+            'neglected_count': len(neglected)
+        }
+    })
 
 

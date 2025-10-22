@@ -6,30 +6,39 @@ services:
       - "5000:5000"
     depends_on:
       - db
+    env_file:
+      - .env  # REQUIRED: Create this file from env.example
     environment:
-      FLASK_ENV: development 
-      SECRET_KEY: your_very_secret_key
-      SQLALCHEMY_DATABASE_URI: mysql+pymysql://flaskuser:flaskpassword@db/fitness_tracker
-      # FLASK_APP is not strictly necessary with `python -m app` but can be useful for Flask CLI commands
+      FLASK_ENV: ${FLASK_ENV:-development}
       FLASK_APP: app
+      # Database connection uses env vars from .env file
+      SQLALCHEMY_DATABASE_URI: mysql+pymysql://${DB_USER}:${DB_PASSWORD}@db/${DB_NAME}
     volumes:
       - .:/app
+    restart: unless-stopped
 
   db:
-    # It's recommended to use a specific version, not 'latest', for stability
-    image: mariadb:latest
+    # Using specific version for stability
+    image: mariadb:10.11
     container_name: mariadb-container-dev
     environment:
-      MYSQL_ROOT_PASSWORD: my-secret-pw
-      MYSQL_DATABASE: fitness_tracker
-      MYSQL_USER: flaskuser
-      MYSQL_PASSWORD: flaskpassword
+      # ⚠️ SECURITY: All passwords come from .env file
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
     ports:
       - "3306:3306"
     volumes:
       - mariadb_data:/var/lib/mysql
-      # This line is crucial for automatic database initialization by MariaDB
-      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
+      # Automatic database initialization on first startup
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/01-init_db.sql:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   mariadb_data:

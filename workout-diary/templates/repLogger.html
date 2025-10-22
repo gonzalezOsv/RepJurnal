@@ -1,115 +1,143 @@
 {% extends "layout_user.html" %}
 
-{% block title %}Register - My Flask App{% endblock %}
+{% block title %}Log Workout - RepJournal{% endblock %}
 
 {% block content %}
-<main class="container mx-auto py-16 px-6">
-    <div class="max-w-md mx-auto bg-white p-8 rounded-lg shadow-lg">
-        <h2 class="text-4xl font-extrabold mb-6 text-center text-blue-800">Log Your Exercise</h2>
-
-        <!-- Display current set (after user enters weight and reps) -->
-        <div id="entered-set" class="mb-6 hidden text-center">
-            <p class="text-xl font-semibold text-gray-800 mb-2">Entered Set</p>
-            <p id="display-set" class="text-lg text-blue-600"></p>
+<div class="min-h-screen bg-gray-50 py-8 px-4">
+    <div class="max-w-6xl mx-auto">
+        
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl sm:text-4xl font-bold text-gray-800 mb-2">Log Your Workout</h1>
+            <p class="text-gray-600 text-sm sm:text-base">Track your progress, one rep at a time</p>
         </div>
 
-        <!-- Form for logging workout -->
-        <form id="workout-form">
-            <!-- Body Part Dropdown -->
-            <div class="mb-4">
-                <label for="body-part" class="block text-lg font-medium text-gray-700 mb-2">Select Body Part</label>
-                <select id="body-part" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
-                    <option value="">Select Body Part</option>
-                    <option value="chest">Chest</option>
-                    <option value="back">Back</option>
-                    <option value="legs">Legs</option>
-                    <option value="arms">Arms</option>
-                    <option value="shoulders">Shoulders</option>
-                    <option value="abs">Abs</option>
-                </select>
-            </div>
-
-                        <!-- Exercise Dropdown -->
-            <div class="mb-4">
-                <label for="exercise" class="block text-lg font-medium text-gray-700 mb-2">Select Exercise</label>
-                <select id="exercise" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
-                    <option value="">Select Exercise</option>
-                    <!-- Options will be populated dynamically -->
-                    <option value="custom">Custom Exercise</option>
-                </select>
-            </div>
-
-            <!-- Custom Exercise Input (hidden by default) -->
-            <div id="custom-exercise-container" class="mb-4 hidden">
-                <label for="custom-exercise" class="block text-lg font-medium text-gray-700 mb-2">Enter Custom Exercise Name</label>
-                <input type="text" id="custom-exercise" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600" placeholder="Custom Exercise Name">
-            </div>
-
-            <!-- Weight and Reps Inputs -->
-            <div class="grid grid-cols-3 gap-4 mb-4">
-                <div>
-                    <label for="weight" class="block text-lg font-medium text-gray-700 mb-2">Weight</label>
-                    <input type="number" id="weight" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600" placeholder="Enter weight">
-                </div>
-                <div>
-                    <label for="unit" class="block text-lg font-medium text-gray-700 mb-2">Unit</label>
-                    <select id="unit" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
-                        <option value="lb">lbs</option>
-                        <option value="kg">kg</option>
-                    </select>
-                </div>
-                <div>
-                    <label for="reps" class="block text-lg font-medium text-gray-700 mb-2">Reps</label>
-                    <input type="number" id="reps" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600" placeholder="Enter reps">
-                </div>
-                <!-- reps-->
-                <div>
-                    <label for="sets" class="block text-lg font-medium text-gray-700 mb-2">Sets</label>
-                    <input type="number" id="sets" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600" placeholder="Enter Sets">
-                </div>
-            </div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
             
-            <!-- Submit Button -->
-            <div class="text-center">
-                <button type="submit" class="bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg hover:bg-blue-700 transition-all">
-                    Log Set
-                </button>
-            </div>
+            <!-- Left Column: Logging Form -->
+            <div class="bg-white rounded-2xl shadow-lg p-6 sm:p-8 border border-gray-200">
+                <h2 class="text-2xl font-bold mb-4 text-gray-800 border-b-2 border-gray-200 pb-3">
+                    Add Exercise
+                </h2>
 
-            <div class="max-w-md mx-auto mt-8">
-                <h3 class="text-2xl font-bold mb-4 text-gray-800">Today's Sets</h3>
-                <div id="logged-sets" class="space-y-2">
-                    <!-- Logged sets will appear here -->
+                <!-- Date Selector -->
+                <div class="mb-6 bg-blue-50 border border-blue-200 rounded-xl p-4">
+                    <label for="workout-date-picker" class="block text-sm font-semibold text-gray-700 mb-2">Workout Date</label>
+                    <div class="flex flex-col sm:flex-row gap-2">
+                        <input 
+                            type="date" 
+                            id="workout-date-picker" 
+                            class="flex-1 px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm font-medium text-gray-700"
+                        />
+                        <button 
+                            type="button"
+                            id="today-btn"
+                            class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-all duration-300 whitespace-nowrap">
+                            Today
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-600 mt-2">Select the date for this workout. Exercises will be logged to this date.</p>
                 </div>
-            </div>
 
-        </form>
+                <!-- Form for logging workout -->
+                <form id="workout-form">
+                    <!-- Body Part Dropdown -->
+                    <div class="mb-5">
+                        <label for="body-part" class="block text-sm font-semibold text-gray-700 mb-2">Body Part</label>
+                        <select id="body-part" class="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                            <option value="">Select Body Part</option>
+                        </select>
+                    </div>
+
+                    <!-- Exercise Dropdown -->
+                    <div class="mb-5">
+                        <label for="exercise" class="block text-sm font-semibold text-gray-700 mb-2">Exercise</label>
+                        <select id="exercise" class="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                            <option value="">Select Exercise</option>
+                        </select>
+                    </div>
+
+                    <!-- Weight, Unit, Reps, Sets Grid -->
+                    <div class="grid grid-cols-2 gap-4 mb-5">
+                        <div>
+                            <label for="weight" class="block text-sm font-semibold text-gray-700 mb-2">Weight</label>
+                            <input type="number" id="weight" step="0.5" class="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" placeholder="0">
+                        </div>
+                        <div>
+                            <label for="unit" class="block text-sm font-semibold text-gray-700 mb-2">Unit</label>
+                            <select id="unit" class="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                                <option value="lb">lbs</option>
+                                <option value="kg">kg</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="reps" class="block text-sm font-semibold text-gray-700 mb-2">Reps</label>
+                            <input type="number" id="reps" class="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" placeholder="0">
+                        </div>
+                        <div>
+                            <label for="sets" class="block text-sm font-semibold text-gray-700 mb-2">Sets</label>
+                            <input type="number" id="sets" class="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" placeholder="1" value="1">
+                        </div>
+                    </div>
+                    
+                    <!-- Submit Button -->
+                    <div class="mt-6">
+                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                            Log Exercise
+                        </button>
+                    </div>
+                </form>
 
                 <!-- Tips Section -->
-                <div class="mt-8">
+                <div class="mt-8 bg-gray-50 rounded-xl p-5 border border-gray-200">
                     <div class="flex items-center justify-between cursor-pointer" id="tips-toggle">
-                        <h3 class="text-2xl font-bold text-gray-800">Tips</h3>
-                        <span id="tips-arrow" class="text-blue-600">▼</span>
+                        <h3 class="text-sm font-semibold text-gray-700">
+                            💡 Quick Tips
+                        </h3>
+                        <span id="tips-arrow" class="text-gray-600 text-lg transition-transform duration-300">▼</span>
                     </div>
                     <div id="tips-content" class="mt-4 hidden">
-                        <p class="text-gray-700 mb-2">Based on your previous logs, here are some recommendations:</p>
-                        <div id="tips-recommendation" class="bg-gray-50 p-4 rounded-lg">
-                            <!-- Tips will be dynamically populated here -->
-                            <p class="text-gray-600">Select an exercise to see recommendations.</p>
+                        <p class="text-gray-600 text-xs mb-3">Based on your selection:</p>
+                        <div id="tips-recommendation" class="bg-white p-4 rounded-lg border border-gray-200">
+                            <p class="text-gray-600 text-sm">Select an exercise to see recommendations.</p>
                         </div>
                     </div>
                 </div>
+            </div>
 
-        <!-- Add this after your form -->
-
-
+            <!-- Right Column: Today's Workout -->
+            <div class="bg-white rounded-2xl shadow-lg p-6 sm:p-8 border border-gray-200">
+                <div class="mb-6 border-b-2 border-gray-200 pb-3 flex items-center justify-between">
+                    <h2 class="text-2xl font-bold text-gray-800">
+                        Workout Log
+                    </h2>
+                    <div class="text-sm text-gray-500 font-medium" id="display-date">
+                        <!-- Date will be displayed here -->
+                    </div>
+                </div>
+                
+                <!-- Logged Sets Container -->
+                <div id="logged-sets" class="space-y-3 min-h-[200px]">
+                    <!-- Loading state -->
+                    <div class="flex flex-col items-center justify-center py-12 text-gray-400" id="empty-state">
+                        <svg class="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                        </svg>
+                        <p class="text-lg font-semibold">No exercises logged yet</p>
+                        <p class="text-sm mt-1">Start tracking your workout!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-</main>
+</div>
 {% endblock %}
 
 {% block scripts %}
     {{ super() }}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
     <script src="{{ url_for('static', filename='repLogger.js') }}"></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-
 {% endblock %}

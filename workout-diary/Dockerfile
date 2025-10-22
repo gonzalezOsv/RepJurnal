@@ -1,15 +1,24 @@
-FROM python:3.9-slim-buster
+FROM python:3.11-slim-bullseye
 
 # Set work directory
 WORKDIR /app
 
-# Copy your entire application directory (workout-diary/app) into the /app directory in the container
-# Assuming your Dockerfile is in the 'workout-diary' directory,
-# this will copy 'app' folder, 'requirements.txt' etc.
-COPY . .
+# Install system dependencies needed for Python packages
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    libffi-dev \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies
+# Copy requirements first to leverage Docker cache
+COPY requirements.txt .
+
+# Install Python dependencies
 RUN pip install --upgrade pip && pip install -r requirements.txt
+
+# Copy the rest of the application
+COPY . .
 
 # Set environment variables
 # FLASK_APP is not strictly necessary if you're using `python -m app` and __main__.py
