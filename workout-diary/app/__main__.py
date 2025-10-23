@@ -6,10 +6,16 @@ def main():
     # Check if the environment is development or production
     environment = os.getenv('FLASK_ENV', 'development')
 
-    # Initialize database only in development/testing environments
+    # Check if database should be initialized
+    auto_init = os.getenv('AUTO_INIT_DB', 'false').lower() == 'true'
+    
+    # Initialize database in development/testing OR if AUTO_INIT_DB=true
     if environment in ['development', 'testing']:
         print(f"Initializing database for {environment} environment...")
         initialize_database() # Call your database initialization function
+    elif auto_init:
+        print("AUTO_INIT_DB is enabled. Initializing database for production...")
+        initialize_database()
     else:
         print(f"Running in {environment} environment. Skipping database initialization.")
 
