@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first to leverage Docker cache
+# When Railway uses this Dockerfile, it's already in the workout-diary context
 COPY requirements.txt .
 
 # Install Python dependencies
