@@ -24,15 +24,19 @@ def initialize_database():
     try:
         logger.info("Database initialization starting...")
         
-        # Get credentials from environment or use defaults for development
-        db_host = os.getenv('DB_HOST', 'db')
-        db_user = os.getenv('DB_USER', 'flaskuser')
-        db_password = os.getenv('DB_PASSWORD', 'flaskpassword')
-        db_name = os.getenv('DB_NAME', 'fitness_tracker')
+        # Get credentials from environment (try Railway's variable names first)
+        db_host = os.getenv('DB_HOST') or os.getenv('MYSQLHOST') or os.getenv('MYSQL_HOST') or 'db'
+        db_user = os.getenv('DB_USER') or os.getenv('MYSQLUSER') or os.getenv('MYSQL_USER') or 'flaskuser'
+        db_password = os.getenv('DB_PASSWORD') or os.getenv('MYSQLPASSWORD') or os.getenv('MYSQL_PASSWORD') or 'flaskpassword'
+        db_name = os.getenv('DB_NAME') or os.getenv('MYSQL_DATABASE') or 'fitness_tracker'
+        db_port = int(os.getenv('DB_PORT') or os.getenv('MYSQLPORT') or os.getenv('MYSQL_PORT') or '3306')
         flask_env = os.getenv('FLASK_ENV', 'production')
+        
+        logger.info(f"Connecting to database at {db_host}:{db_port}/{db_name} as {db_user}")
         
         connection = pymysql.connect(
             host=db_host,
+            port=db_port,
             user=db_user,
             password=db_password,
             database=db_name
