@@ -32,6 +32,41 @@ def create_app():
     jwt_secret_key = os.getenv('JWT_SECRET_KEY')
     db_uri = os.getenv('SQLALCHEMY_DATABASE_URI')
     
+    # Build database URI from components if not provided directly
+    if not db_uri:
+        db_host = os.getenv('DB_HOST')
+        db_port = os.getenv('DB_PORT', '3306')
+        db_name = os.getenv('DB_NAME')
+        db_user = os.getenv('DB_USER')
+        db_password = os.getenv('DB_PASSWORD')
+        
+        if all([db_host, db_name, db_user, db_password]):
+            db_uri = f'mysql+pymysql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}'
+            print(f"📊 Built database URI from components: mysql+pymysql://{db_user}:***@{db_host}:{db_port}/{db_name}")
+        else:
+            print(f"⚠️  Database URI components missing:")
+            print(f"   DB_HOST: {'✓' if db_host else '✗'}")
+            print(f"   DB_PORT: {db_port}")
+            print(f"   DB_NAME: {'✓' if db_name else '✗'}")
+            print(f"   DB_USER: {'✓' if db_user else '✗'}")
+            print(f"   DB_PASSWORD: {'✓' if db_password else '✗'}")
+    else:
+        # Mask the password in URI for logging
+        if '://' in db_uri and '@' in db_uri:
+            try:
+                parts = db_uri.split('://')
+                protocol = parts[0]
+                rest = parts[1].split('@')
+                user_pass = rest[0]
+                host_db = '@'.join(rest[1:])
+                if ':' in user_pass:
+                    user = user_pass.split(':')[0]
+                    print(f"📊 Using database URI: {protocol}://{user}:***@{host_db}")
+                else:
+                    print(f"📊 Using database URI: {protocol}://***@{host_db}")
+            except:
+                print(f"📊 Using database URI (format: {db_uri.split('://')[0]}://...)")
+    
     # PRODUCTION: Enforce strong secrets (fail fast if missing or weak)
     if env == 'production':
         if not secret_key or len(secret_key) < 32:
@@ -44,10 +79,28 @@ def create_app():
                 "❌ SECURITY ERROR: JWT_SECRET_KEY must be set and at least 32 characters in production! "
                 "Generate with: python3 -c \"import secrets; print(secrets.token_hex(32))\""
             )
-        if not db_uri or any(weak in db_uri.lower() for weak in ['flaskpassword', 'my-secret-pw', 'example', 'test']):
+        # Check for obviously weak credentials (but allow Railway/cloud provider auto-generated ones)
+        if not db_uri:
             raise ValueError(
-                "❌ SECURITY ERROR: SQLALCHEMY_DATABASE_URI must use strong credentials in production!"
+                "❌ SECURITY ERROR: SQLALCHEMY_DATABASE_URI must be set in production!"
             )
+        
+        # Only fail if using known weak/example passwords (not if 'test' appears in hostname)
+        weak_passwords = ['flaskpassword', 'my-secret-pw', 'password123', 'admin', 'root123']
+        # Extract password from URI for checking (format: mysql://user:password@host/db)
+        if '://' in db_uri and '@' in db_uri:
+            try:
+                # Extract password portion
+                password_part = db_uri.split('://')[1].split('@')[0]
+                if ':' in password_part:
+                    password = password_part.split(':')[1]
+                    if any(weak in password.lower() for weak in weak_passwords):
+                        raise ValueError(
+                            "❌ SECURITY ERROR: Database password appears to be weak! "
+                            "Use strong auto-generated passwords from your hosting provider."
+                        )
+            except IndexError:
+                pass  # Can't parse URI, allow it (might be encrypted or non-standard format)
         # Ensure we're not using default/example secrets
         if any(default in secret_key.lower() for default in ['change', 'example', 'dev_', 'your_']):
             raise ValueError("❌ SECURITY ERROR: SECRET_KEY appears to be a default/example value!")
