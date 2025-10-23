@@ -5,13 +5,11 @@
 -- For test data, see test_data.sql
 -- ===================================
 
--- Create database (if not already created)
--- WARNING: Do NOT uncomment the drop command below in production!
--- DROP DATABASE fitness_tracker;
-CREATE DATABASE IF NOT EXISTS fitness_tracker;
-
--- Use the database
-USE fitness_tracker;
+-- NOTE: In production (Railway), the database already exists with a provider-specific name
+-- The initialization script connects to the existing database automatically
+-- For local development, uncomment these lines and update the database name:
+-- CREATE DATABASE IF NOT EXISTS fitness_tracker;
+-- USE fitness_tracker;
 
 -- ===================================
 -- DROP EXISTING TABLES (For clean setup)
