@@ -34,11 +34,12 @@ def create_app():
     
     # Build database URI from components if not provided directly
     if not db_uri:
-        db_host = os.getenv('DB_HOST')
-        db_port = os.getenv('DB_PORT', '3306')
-        db_name = os.getenv('DB_NAME')
-        db_user = os.getenv('DB_USER')
-        db_password = os.getenv('DB_PASSWORD')
+        # Try Railway's variable names first, fallback to custom names
+        db_host = os.getenv('DB_HOST') or os.getenv('MYSQL_HOST')
+        db_port = os.getenv('DB_PORT') or os.getenv('MYSQL_PORT', '3306')
+        db_name = os.getenv('DB_NAME') or os.getenv('MYSQL_DATABASE')
+        db_user = os.getenv('DB_USER') or os.getenv('MYSQL_USER')
+        db_password = os.getenv('DB_PASSWORD') or os.getenv('MYSQL_PASSWORD')
         
         if all([db_host, db_name, db_user, db_password]):
             db_uri = f'mysql+pymysql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}'
