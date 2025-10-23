@@ -93,6 +93,7 @@ coverage.xml
 
 # Docker (development only files)
 docker-compose.override.yml
+# Note: .dockerignore SHOULD be committed
 
 # OS specific
 Thumbs.db
