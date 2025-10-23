@@ -19,3 +19,10 @@ def legal_document(doc_type):
         content=document.content,
         effective_date=document.effective_date
     )
+
+@legal_bp.route('/contact')
+def contact():
+    """
+    Contact page for user inquiries and support
+    """
+    return render_template('contact.html')

@@ -1,26 +1,129 @@
 {% extends "layout.html" %}
 
-{% block title %}Login - Fitness Tracker{% endblock %}
+{% block title %}
+    {% if document_type == 'privacy' %}Privacy Policy{% elif document_type == 'terms' %}Terms of Service{% else %}{{ document_type|capitalize }}{% endif %} - RepJurney Fitness Diary
+{% endblock %}
 
 {% block content %}
 
-<body class="bg-gray-100 font-sans">
-    <header class="bg-blue-600 text-white p-4">
-        <h1 class="text-2xl font-bold">{{ document_type|capitalize }}</h1>
+<div class="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-12">
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-16 shadow-lg">
+        <div class="container mx-auto px-4 max-w-4xl">
+            <div class="flex items-center justify-center mb-4">
+                <svg class="w-12 h-12 mr-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                </svg>
+                <h1 class="text-4xl md:text-5xl font-bold">
+                    {% if document_type == 'privacy' %}
+                        Privacy Policy
+                    {% elif document_type == 'terms' %}
+                        Terms of Service
+                    {% else %}
+                        {{ document_type|capitalize }}
+                    {% endif %}
+                </h1>
+            </div>
+            <p class="text-center text-blue-100 text-lg">RepJurney Fitness Diary - Your trust is our priority</p>
+        </div>
     </header>
-    <main class="container mx-auto p-6 bg-white rounded shadow mt-6">
-        <h2 class="text-xl font-semibold">Version {{ version }}</h2>
-        <p class="text-sm text-gray-500">Effective Date: {{ effective_date.strftime('%B %d, %Y') }}</p>
-        <hr class="my-4">
-        <div class="prose max-w-none">
-            {{ content|safe }}
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-12 max-w-4xl">
+        <!-- Document Info Card -->
+        <div class="bg-white rounded-2xl shadow-xl p-8 mb-8 border-l-4 border-blue-600">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between">
+                <div class="mb-4 md:mb-0">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-2">Document Information</h2>
+                    <div class="flex items-center text-gray-600">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                        <span class="text-sm">Effective Date: <strong>{{ effective_date.strftime('%B %d, %Y') }}</strong></span>
+                    </div>
+                </div>
+                <div class="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-800 rounded-full">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    <span class="font-semibold">Version {{ version }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Document Content -->
+        <div class="bg-white rounded-2xl shadow-xl p-8 md:p-12">
+            <div class="prose prose-lg prose-blue max-w-none">
+                <style>
+                    .prose h1 {
+                        color: #1e40af;
+                        font-size: 2rem;
+                        font-weight: 700;
+                        margin-top: 2rem;
+                        margin-bottom: 1rem;
+                        padding-bottom: 0.5rem;
+                        border-bottom: 3px solid #3b82f6;
+                    }
+                    .prose h2 {
+                        color: #2563eb;
+                        font-size: 1.5rem;
+                        font-weight: 600;
+                        margin-top: 1.5rem;
+                        margin-bottom: 0.75rem;
+                    }
+                    .prose h3 {
+                        color: #3b82f6;
+                        font-size: 1.25rem;
+                        font-weight: 600;
+                        margin-top: 1rem;
+                        margin-bottom: 0.5rem;
+                    }
+                    .prose p {
+                        color: #374151;
+                        line-height: 1.75;
+                        margin-bottom: 1rem;
+                    }
+                    .prose ul, .prose ol {
+                        color: #4b5563;
+                        margin-left: 1.5rem;
+                        margin-bottom: 1rem;
+                    }
+                    .prose li {
+                        margin-bottom: 0.5rem;
+                        padding-left: 0.5rem;
+                    }
+                    .prose strong {
+                        color: #1f2937;
+                        font-weight: 600;
+                    }
+                    .prose ul li::marker {
+                        color: #3b82f6;
+                    }
+                </style>
+                {{ content|safe }}
+            </div>
+        </div>
+
+        <!-- Back to Home Button -->
+        <div class="mt-8 text-center">
+            <a href="{{ url_for('main.home') }}" class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-lg shadow-md hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 transform hover:scale-105">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+                Back to Home
+            </a>
+        </div>
+
+        <!-- Last Updated Notice -->
+        <div class="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <p class="text-sm text-gray-700 text-center">
+                <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                Questions about this document? <a href="{{ url_for('legal.contact') }}" class="text-blue-600 hover:text-blue-800 font-semibold underline">Contact us</a>
+            </p>
         </div>
     </main>
-</body>
+</div>
 
-{% endblock %}
-
-{% block scripts %}
-    {{ super() }}
-    <script src="{{ url_for('static', filename='login.js') }}"></script>
 {% endblock %}
