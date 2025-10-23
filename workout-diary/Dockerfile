@@ -21,12 +21,13 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 COPY . .
 
 # Set environment variables
-# FLASK_APP is not strictly necessary if you're using `python -m app` and __main__.py
-# but it doesn't hurt to keep it if you have other Flask CLI commands.
 ENV FLASK_APP=app
 ENV FLASK_RUN_HOST=0.0.0.0
 
-# Expose port
+# Railway provides PORT environment variable, default to 5000 for local development
+ENV PORT=5000
+
+# Expose port (Railway will override this)
 EXPOSE 5000
 
 # Run Flask by executing the 'app' package as a module

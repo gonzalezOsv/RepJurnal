@@ -8,6 +8,8 @@
 .env.production
 .env.*.local
 *.env
+!env.example
+!env.railway.example
 
 # Python
 __pycache__/
