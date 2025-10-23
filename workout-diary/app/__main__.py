@@ -21,6 +21,17 @@ def main():
 
     # Create the Flask application instance
     app = create_app()
+    
+    # Ensure SQLAlchemy tables exist (creates them if they don't)
+    if environment in ['development', 'testing'] or auto_init:
+        print("Ensuring SQLAlchemy models are synced with database...")
+        with app.app_context():
+            from .models import db
+            try:
+                db.create_all()
+                print("✅ SQLAlchemy tables verified/created")
+            except Exception as e:
+                print(f"⚠️  Warning: Could not create SQLAlchemy tables: {e}")
 
     # Get port from environment (Railway provides PORT variable)
     port = int(os.getenv('PORT', 5000))
