@@ -30,16 +30,23 @@ def create_app():
     # Get secrets from environment variables
     secret_key = os.getenv('SECRET_KEY')
     jwt_secret_key = os.getenv('JWT_SECRET_KEY')
-    db_uri = os.getenv('SQLALCHEMY_DATABASE_URI')
+    
+    # Try multiple database URL formats (Railway provides MYSQL_URL, DATABASE_URL, etc.)
+    db_uri = os.getenv('SQLALCHEMY_DATABASE_URI') or os.getenv('MYSQL_URL') or os.getenv('DATABASE_URL')
+    
+    # Convert mysql:// to mysql+pymysql:// for SQLAlchemy
+    if db_uri and db_uri.startswith('mysql://'):
+        db_uri = db_uri.replace('mysql://', 'mysql+pymysql://', 1)
+        print(f"📊 Converted MySQL URL to use pymysql driver")
     
     # Build database URI from components if not provided directly
     if not db_uri:
-        # Try Railway's variable names first, fallback to custom names
-        db_host = os.getenv('DB_HOST') or os.getenv('MYSQL_HOST')
-        db_port = os.getenv('DB_PORT') or os.getenv('MYSQL_PORT', '3306')
+        # Try Railway's variable names (with and without underscores)
+        db_host = os.getenv('DB_HOST') or os.getenv('MYSQLHOST') or os.getenv('MYSQL_HOST')
+        db_port = os.getenv('DB_PORT') or os.getenv('MYSQLPORT') or os.getenv('MYSQL_PORT', '3306')
         db_name = os.getenv('DB_NAME') or os.getenv('MYSQL_DATABASE')
-        db_user = os.getenv('DB_USER') or os.getenv('MYSQL_USER')
-        db_password = os.getenv('DB_PASSWORD') or os.getenv('MYSQL_PASSWORD')
+        db_user = os.getenv('DB_USER') or os.getenv('MYSQLUSER') or os.getenv('MYSQL_USER')
+        db_password = os.getenv('DB_PASSWORD') or os.getenv('MYSQLPASSWORD') or os.getenv('MYSQL_PASSWORD')
         
         if all([db_host, db_name, db_user, db_password]):
             db_uri = f'mysql+pymysql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}'
