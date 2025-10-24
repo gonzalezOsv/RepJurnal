@@ -9,6 +9,9 @@
 .env.*.local
 *.env
 
+# EXCEPTION: .env.dev is tracked on dev branch only (for local development template)
+!.env.dev
+
 # Python cache
 __pycache__/
 *.py[cod]

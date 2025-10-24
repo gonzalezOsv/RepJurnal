@@ -16,39 +16,17 @@ try {
     exit 1
 }
 
-# Create .env file if it doesn't exist
+# Create .env file from .env.dev template
 Write-Host "`n📝 Creating .env file..." -ForegroundColor Yellow
 if (Test-Path ".env") {
     Write-Host "⚠️  .env file already exists. Skipping..." -ForegroundColor Yellow
+} elseif (Test-Path ".env.dev") {
+    Copy-Item ".env.dev" ".env"
+    Write-Host "✅ .env file created from .env.dev template" -ForegroundColor Green
 } else {
-    @"
-# ===================================
-# LOCAL DEVELOPMENT ENVIRONMENT
-# ===================================
-# Flask Environment
-FLASK_ENV=development
-FLASK_APP=app
-FLASK_DEBUG=1
-
-# Secret Keys (for local dev only - NOT FOR PRODUCTION!)
-SECRET_KEY=dev_secret_key_change_in_production_12345678901234567890
-JWT_SECRET_KEY=dev_jwt_secret_key_change_in_production_12345678901234567890
-
-# Database Configuration (Docker Compose)
-DB_HOST=db
-DB_PORT=3306
-DB_NAME=fitness_tracker
-DB_USER=flaskuser
-DB_PASSWORD=flaskpassword
-DB_ROOT_PASSWORD=rootpassword
-
-# Auto-initialize database with sample data
-AUTO_INIT_DB=true
-
-# Port Configuration
-PORT=5000
-"@ | Out-File -FilePath ".env" -Encoding UTF8
-    Write-Host "✅ .env file created" -ForegroundColor Green
+    Write-Host "❌ .env.dev template not found. Make sure you're on the dev branch!" -ForegroundColor Red
+    Write-Host "   Run: git checkout dev" -ForegroundColor Yellow
+    exit 1
 }
 
 Write-Host "`n🐳 Starting Docker containers..." -ForegroundColor Yellow
