@@ -190,8 +190,8 @@ $(document).ready(function() {
             $('#imported-routines-section').addClass('hidden');
             
             // Update tab text colors
-            $('#myRoutinesTab span').first().removeClass('text-gray-600 dark:text-gray-400').addClass('text-gray-800 dark:text-gray-100');
-            $('#importedRoutinesTab span').first().removeClass('text-gray-800 dark:text-gray-100').addClass('text-gray-600 dark:text-gray-400');
+            $('#myRoutinesTab span').not('#myRoutinesCount').removeClass('text-gray-600 dark:text-gray-400').addClass('text-gray-800 dark:text-gray-100');
+            $('#importedRoutinesTab span').not('#importedRoutinesCount').removeClass('text-gray-800 dark:text-gray-100').addClass('text-gray-600 dark:text-gray-400');
         } else {
             // Update Imported Routines Tab - active state
             $('#importedRoutinesTab')
@@ -208,8 +208,8 @@ $(document).ready(function() {
             $('#my-routines-section').addClass('hidden');
             
             // Update tab text colors
-            $('#importedRoutinesTab span').first().removeClass('text-gray-600 dark:text-gray-400').addClass('text-gray-800 dark:text-gray-100');
-            $('#myRoutinesTab span').first().removeClass('text-gray-800 dark:text-gray-100').addClass('text-gray-600 dark:text-gray-400');
+            $('#importedRoutinesTab span').not('#importedRoutinesCount').removeClass('text-gray-600 dark:text-gray-400').addClass('text-gray-800 dark:text-gray-100');
+            $('#myRoutinesTab span').not('#myRoutinesCount').removeClass('text-gray-800 dark:text-gray-100').addClass('text-gray-600 dark:text-gray-400');
         }
     }
 
@@ -530,8 +530,8 @@ $(document).ready(function() {
                 <div class="space-y-3">
                     <!-- Body Part -->
                     <div>
-                        <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Body Part</label>
-                        <select class="exercise-body-part w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-sm text-gray-900 dark:text-gray-100">
+                        <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">Body Part</label>
+                        <select class="exercise-body-part w-full px-3 py-2.5 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-base text-gray-900 dark:text-gray-100">
                             <option value="">Select Body Part</option>
                             ${bodyPartsOptions}
                         </select>
@@ -539,37 +539,43 @@ $(document).ready(function() {
 
                     <!-- Exercise Name Dropdown (like repLogger) -->
                     <div>
-                        <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Exercise Name</label>
-                        <select class="exercise-name-select w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-sm text-gray-900 dark:text-gray-100" ${selectedBodyPart ? '' : 'disabled'}>
+                        <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">Exercise Name</label>
+                        <select class="exercise-name-select w-full px-3 py-2.5 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-base text-gray-900 dark:text-gray-100" ${selectedBodyPart ? '' : 'disabled'}>
                             <option value="">Select Exercise</option>
                         </select>
                         <!-- Custom Exercise Input (hidden by default) -->
-                        <input type="text" class="exercise-name-custom hidden w-full px-3 py-2 mt-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-sm text-gray-900 dark:text-gray-100" 
+                        <input type="text" class="exercise-name-custom hidden w-full px-3 py-2.5 mt-2 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-base text-gray-900 dark:text-gray-100" 
                                placeholder="Enter custom exercise name">
                     </div>
 
                     <!-- Strength Fields -->
                     <div class="strength-fields ${isCardio ? 'hidden' : ''}">
-                        <div class="grid grid-cols-3 gap-2">
-                            <div>
-                                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Sets</label>
-                                <input type="number" class="exercise-sets w-full px-2 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-sm text-center text-gray-900 dark:text-gray-100" 
-                                       value="${existingExercise && existingExercise.sets ? existingExercise.sets : ''}" 
-                                       min="1">
+                        <div class="space-y-3">
+                            <!-- Sets and Reps on one row (stacked on mobile) -->
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">Sets</label>
+                                    <input type="number" class="exercise-sets w-full px-3 py-2.5 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-base text-center text-gray-900 dark:text-gray-100" 
+                                           value="${existingExercise && existingExercise.sets ? existingExercise.sets : ''}" 
+                                           placeholder="0"
+                                           min="1">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">Reps</label>
+                                    <input type="number" class="exercise-reps w-full px-3 py-2.5 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-base text-center text-gray-900 dark:text-gray-100" 
+                                           value="${existingExercise && existingExercise.reps ? existingExercise.reps : ''}" 
+                                           placeholder="0"
+                                           min="1">
+                                </div>
                             </div>
+                            <!-- Weight on its own row for better visibility -->
                             <div>
-                                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Reps</label>
-                                <input type="number" class="exercise-reps w-full px-2 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-sm text-center text-gray-900 dark:text-gray-100" 
-                                       value="${existingExercise && existingExercise.reps ? existingExercise.reps : ''}" 
-                                       min="1">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Weight</label>
-                                <div class="flex gap-1">
-                                    <input type="number" step="0.5" class="exercise-weight flex-1 px-2 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-sm text-center text-gray-900 dark:text-gray-100" 
+                                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">Weight</label>
+                                <div class="flex gap-2">
+                                    <input type="number" step="0.5" class="exercise-weight flex-1 px-3 py-2.5 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-base text-center text-gray-900 dark:text-gray-100" 
                                            value="${existingExercise && existingExercise.weight ? existingExercise.weight : ''}" 
                                            min="0" placeholder="0">
-                                    <select class="exercise-unit px-2 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-sm text-gray-900 dark:text-gray-100">
+                                    <select class="exercise-unit w-20 px-2 py-2.5 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-sm font-bold text-gray-900 dark:text-gray-100">
                                         <option value="lb" ${existingExercise && existingExercise.unit === 'lb' ? 'selected' : ''}>lbs</option>
                                         <option value="kg" ${existingExercise && existingExercise.unit === 'kg' ? 'selected' : ''}>kg</option>
                                     </select>
@@ -580,17 +586,18 @@ $(document).ready(function() {
 
                     <!-- Cardio Fields -->
                     <div class="cardio-fields ${!isCardio ? 'hidden' : ''}">
-                        <div class="grid grid-cols-2 gap-2">
+                        <div class="space-y-3">
                             <div>
-                                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Duration (min)</label>
-                                <input type="number" step="0.5" class="exercise-duration w-full px-2 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-sm text-center text-gray-900 dark:text-gray-100" 
+                                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">Duration (minutes)</label>
+                                <input type="number" step="0.5" class="exercise-duration w-full px-3 py-2.5 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-base text-center text-gray-900 dark:text-gray-100" 
                                        value="${existingExercise && existingExercise.duration_minutes ? existingExercise.duration_minutes : ''}" 
+                                       placeholder="0"
                                        min="0">
                             </div>
                             <div>
-                                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Intensity</label>
-                                <select class="exercise-intensity w-full px-2 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-sm text-gray-900 dark:text-gray-100">
-                                    <option value="">Select</option>
+                                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">Intensity Level</label>
+                                <select class="exercise-intensity w-full px-3 py-2.5 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-base text-gray-900 dark:text-gray-100">
+                                    <option value="">Select Intensity</option>
                                     <option value="Low" ${existingExercise && existingExercise.intensity === 'Low' ? 'selected' : ''}>Low</option>
                                     <option value="Moderate" ${existingExercise && existingExercise.intensity === 'Moderate' ? 'selected' : ''}>Moderate</option>
                                     <option value="High" ${existingExercise && existingExercise.intensity === 'High' ? 'selected' : ''}>High</option>

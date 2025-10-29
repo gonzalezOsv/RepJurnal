@@ -57,26 +57,28 @@
             </button>
         </div>
 
-        <!-- Routines Navigation Tabs -->
+        <!-- Routines Navigation Tabs - Mobile First -->
         <div class="mb-6 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border-2 border-gray-200 dark:border-gray-700 p-2">
-            <div class="flex gap-2">
-                <button id="myRoutinesTab" class="routine-tab flex-1 flex items-center justify-center gap-3 px-6 py-4 rounded-xl font-bold text-base transition-all bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-900/30 dark:to-blue-900/30 border-2 border-indigo-300 dark:border-indigo-600 shadow-sm">
-                    <div class="bg-gradient-to-r from-indigo-500 to-blue-500 p-2 rounded-lg">
-                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="flex flex-col sm:flex-row gap-2">
+                <!-- My Routines Tab -->
+                <button id="myRoutinesTab" class="routine-tab flex-1 flex items-center justify-center gap-2 px-4 py-3 sm:px-6 sm:py-4 rounded-xl font-bold text-sm sm:text-base transition-all bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-900/30 dark:to-blue-900/30 border-2 border-indigo-300 dark:border-indigo-600 shadow-sm">
+                    <div class="bg-gradient-to-r from-indigo-500 to-blue-500 p-1.5 sm:p-2 rounded-lg flex-shrink-0">
+                        <svg class="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                         </svg>
                     </div>
-                    <span class="text-gray-800 dark:text-gray-100">My Routines</span>
-                    <span id="myRoutinesCount" class="px-2.5 py-1 text-xs font-bold bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 rounded-full">0</span>
+                    <span class="text-gray-800 dark:text-gray-100 truncate">My Routines</span>
+                    <span id="myRoutinesCount" class="px-2 py-0.5 sm:px-2.5 sm:py-1 text-xs font-bold bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 rounded-full flex-shrink-0">0</span>
                 </button>
-                <button id="importedRoutinesTab" class="routine-tab flex-1 flex items-center justify-center gap-3 px-6 py-4 rounded-xl font-bold text-base transition-all bg-transparent hover:bg-gray-50 dark:hover:bg-gray-700/50 border-2 border-transparent">
-                    <div class="bg-gradient-to-r from-blue-500 to-indigo-500 p-2 rounded-lg">
-                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <!-- Imported Routines Tab -->
+                <button id="importedRoutinesTab" class="routine-tab flex-1 flex items-center justify-center gap-2 px-4 py-3 sm:px-6 sm:py-4 rounded-xl font-bold text-sm sm:text-base transition-all bg-transparent hover:bg-gray-50 dark:hover:bg-gray-700/50 border-2 border-transparent">
+                    <div class="bg-gradient-to-r from-blue-500 to-indigo-500 p-1.5 sm:p-2 rounded-lg flex-shrink-0">
+                        <svg class="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
                         </svg>
                     </div>
-                    <span class="text-gray-600 dark:text-gray-400">Imported Routines</span>
-                    <span id="importedRoutinesCount" class="px-2.5 py-1 text-xs font-bold bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded-full">0</span>
+                    <span class="text-gray-600 dark:text-gray-400 truncate">Imported</span>
+                    <span id="importedRoutinesCount" class="px-2 py-0.5 sm:px-2.5 sm:py-1 text-xs font-bold bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded-full flex-shrink-0">0</span>
                 </button>
             </div>
         </div>
