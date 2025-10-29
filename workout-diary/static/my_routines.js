@@ -91,24 +91,43 @@ $(document).ready(function() {
             return;
         }
         
-        // Load routine data into form
-        $('#routineName').val(routine.routine_name + ' (Modified)'); // Add suffix to indicate it's modified
-        $('#routineDescription').val(routine.description || '');
+        // Ask user if they want to create a new routine or edit the existing one
+        const userChoice = confirm(
+            `Do you want to create a NEW routine based on "${routine.routine_name}"?\n\n` +
+            `• Click OK to create a NEW routine (original stays unchanged)\n` +
+            `• Click Cancel to EDIT the existing routine (will update the saved routine)`
+        );
         
-        // Clear existing exercises and add loaded ones
-        $('#exercisesList').empty();
-        exerciseCounter = 0;
-        currentEditingRoutineId = null; // Treat as new routine since we're modifying
-        
-        if (routine.exercises && routine.exercises.length > 0) {
-            routine.exercises.forEach(ex => {
-                addExerciseRow(ex);
-            });
-            expandExercisesSection();
-            showSuccess(`Loaded "${routine.routine_name}" with ${routine.exercises.length} exercises. You can now modify or add more exercises.`);
+        if (userChoice) {
+            // Create NEW routine based on existing one
+            $('#routineName').val(routine.routine_name + ' (Copy)');
+            $('#routineDescription').val(routine.description || '');
+            currentEditingRoutineId = null; // New routine
+            
+            if (routine.exercises && routine.exercises.length > 0) {
+                $('#exercisesList').empty();
+                exerciseCounter = 0;
+                routine.exercises.forEach(ex => {
+                    addExerciseRow(ex);
+                });
+                expandExercisesSection();
+                showSuccess(`Creating NEW routine based on "${routine.routine_name}". Original routine will not be changed.`);
+            }
         } else {
-            showSuccess(`Loaded "${routine.routine_name}". No exercises found. Add exercises to customize.`);
-            expandExercisesSection();
+            // EDIT existing routine
+            $('#routineName').val(routine.routine_name);
+            $('#routineDescription').val(routine.description || '');
+            currentEditingRoutineId = routine.routine_id; // Edit mode
+            
+            if (routine.exercises && routine.exercises.length > 0) {
+                $('#exercisesList').empty();
+                exerciseCounter = 0;
+                routine.exercises.forEach(ex => {
+                    addExerciseRow(ex);
+                });
+                expandExercisesSection();
+                showSuccess(`Editing "${routine.routine_name}". Changes will UPDATE the saved routine.`);
+            }
         }
         
         // Reset load routine dropdown
