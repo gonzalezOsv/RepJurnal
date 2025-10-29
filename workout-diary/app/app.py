@@ -229,6 +229,7 @@ def create_app():
     from .routes_account import account_bp
     from .routes_legal import legal_bp
     from .routes_metrics import metrics_bp
+    from .routes_routines import routines_bp
     
     app.register_blueprint(main_bp, url_prefix='/')
     app.register_blueprint(auth_bp, url_prefix='/auth')
@@ -236,6 +237,7 @@ def create_app():
     app.register_blueprint(account_bp, url_prefix='/account')
     app.register_blueprint(legal_bp, url_prefix='/legal')
     app.register_blueprint(metrics_bp, url_prefix='/metrics')
+    app.register_blueprint(routines_bp, url_prefix='/')
     
     # ========================================
     # SECURITY HEADERS

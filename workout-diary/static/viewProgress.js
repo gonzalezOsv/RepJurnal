@@ -2,82 +2,86 @@
 let exerciseCharts = {};
 let consistencyChart, volumeTrendChart, imbalanceChart;
 
-const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: true,
-    plugins: {
-        legend: { 
-            display: true,
-            labels: {
+function getChartOptions() {
+    const isDarkMode = document.documentElement.classList.contains('dark');
+    
+    return {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+            legend: { 
+                display: true,
+                labels: {
+                    font: {
+                        family: "'Inter', sans-serif",
+                        size: 12,
+                        weight: '500'
+                    },
+                    color: isDarkMode ? '#D1D5DB' : '#374151',
+                    padding: 15,
+                    usePointStyle: true,
+                    pointStyle: 'circle'
+                }
+            },
+            tooltip: { 
+                enabled: true,
+                backgroundColor: isDarkMode ? 'rgba(31, 41, 55, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                titleColor: isDarkMode ? '#F9FAFB' : '#1F2937',
+                bodyColor: isDarkMode ? '#D1D5DB' : '#374151',
+                borderColor: isDarkMode ? '#4B5563' : '#E5E7EB',
+                borderWidth: 1,
+                padding: 12,
+                displayColors: true,
+                boxPadding: 6,
                 font: {
                     family: "'Inter', sans-serif",
-                    size: 12,
-                    weight: '500'
-                },
-                color: '#374151',
-                padding: 15,
-                usePointStyle: true,
-                pointStyle: 'circle'
-            }
-        },
-        tooltip: { 
-            enabled: true,
-            backgroundColor: 'rgba(255, 255, 255, 0.95)',
-            titleColor: '#1F2937',
-            bodyColor: '#374151',
-            borderColor: '#E5E7EB',
-            borderWidth: 1,
-            padding: 12,
-            displayColors: true,
-            boxPadding: 6,
-            font: {
-                family: "'Inter', sans-serif",
-                size: 13
-            }
-        },
-    },
-    scales: {
-        x: { 
-            beginAtZero: false,
-            ticks: {
-                maxRotation: 45,
-                minRotation: 45,
-                font: {
-                    family: "'Inter', sans-serif",
-                    size: 11
-                },
-                color: '#6B7280'
+                    size: 13
+                }
             },
-            grid: {
-                display: false
-            },
-            border: {
-                color: '#E5E7EB',
-                width: 1
-            }
         },
-        y: { 
-            beginAtZero: true,
-            ticks: {
-                callback: function(value) {
-                    return value + ' lbs';
+        scales: {
+            x: { 
+                beginAtZero: false,
+                ticks: {
+                    maxRotation: 45,
+                    minRotation: 45,
+                    font: {
+                        family: "'Inter', sans-serif",
+                        size: 11
+                    },
+                    color: isDarkMode ? '#9CA3AF' : '#6B7280'
                 },
-                font: {
-                    family: "'Inter', sans-serif",
-                    size: 11
+                grid: {
+                    display: false
                 },
-                color: '#6B7280'
+                border: {
+                    color: isDarkMode ? '#4B5563' : '#E5E7EB',
+                    width: 1
+                }
             },
-            grid: {
-                color: '#F3F4F6',
-                drawBorder: false
+            y: { 
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return value + ' lbs';
+                    },
+                    font: {
+                        family: "'Inter', sans-serif",
+                        size: 11
+                    },
+                    color: isDarkMode ? '#9CA3AF' : '#6B7280'
+                },
+                grid: {
+                    color: isDarkMode ? '#374151' : '#F3F4F6',
+                    drawBorder: false
+                },
+                border: {
+                    display: false
+                }
             },
-            border: {
-                display: false
-            }
         },
-    },
-};
+    };
+}
 
 const bodyPartColors = {
     'Chest': '#FF6B6B',
@@ -137,9 +141,9 @@ function createExerciseChart(ctx, exerciseName, progressionData) {
             }]
         },
         options: {
-            ...chartOptions,
+            ...getChartOptions(),
             plugins: {
-                ...chartOptions.plugins,
+                ...getChartOptions().plugins,
                 legend: {
                     display: false
                 }
@@ -152,8 +156,14 @@ function createExerciseChart(ctx, exerciseName, progressionData) {
 
 // Load exercise progression data
 function loadExerciseProgression(exerciseName, canvasId, prValueId = null, prDateId = null) {
+    const canvasElement = $(`#${canvasId}`)[0];
+    if (!canvasElement) {
+        console.error(`Canvas element #${canvasId} not found`);
+        return;
+    }
+    
     $.get(`/metrics/api/exercise-progression/${encodeURIComponent(exerciseName)}`, (data) => {
-        const ctx = $(`#${canvasId}`)[0].getContext('2d');
+        const ctx = canvasElement.getContext('2d');
         
         if (data.dates && data.dates.length > 0) {
             createExerciseChart(ctx, exerciseName, data);
@@ -169,9 +179,16 @@ function loadExerciseProgression(exerciseName, canvasId, prValueId = null, prDat
                 }
             }
         } else {
-            // Show "No data" message
-            ctx.font = '16px Arial';
-            ctx.fillStyle = '#999';
+            // Ensure canvas is sized properly
+            if (ctx.canvas.width === 0 || ctx.canvas.height === 0) {
+                ctx.canvas.width = ctx.canvas.offsetWidth || 400;
+                ctx.canvas.height = ctx.canvas.offsetHeight || 224;
+            }
+            
+            // Show "No data" message with dark mode support
+            const isDarkMode = document.documentElement.classList.contains('dark');
+            ctx.font = '16px Inter, sans-serif';
+            ctx.fillStyle = isDarkMode ? '#9CA3AF' : '#999';
             ctx.textAlign = 'center';
             ctx.fillText('No data available yet', ctx.canvas.width / 2, ctx.canvas.height / 2);
             ctx.fillText('Start logging this exercise!', ctx.canvas.width / 2, (ctx.canvas.height / 2) + 25);
@@ -184,9 +201,17 @@ function loadExerciseProgression(exerciseName, canvasId, prValueId = null, prDat
         }
     }).fail((error) => {
         console.error(`Failed to load progression for ${exerciseName}:`, error);
-        const ctx = $(`#${canvasId}`)[0].getContext('2d');
-        ctx.font = '14px Arial';
-        ctx.fillStyle = '#f00';
+        const ctx = canvasElement.getContext('2d');
+        
+        // Ensure canvas is sized properly
+        if (ctx.canvas.width === 0 || ctx.canvas.height === 0) {
+            ctx.canvas.width = ctx.canvas.offsetWidth || 400;
+            ctx.canvas.height = ctx.canvas.offsetHeight || 224;
+        }
+        
+        const isDarkMode = document.documentElement.classList.contains('dark');
+        ctx.font = '14px Inter, sans-serif';
+        ctx.fillStyle = isDarkMode ? '#EF4444' : '#f00';
         ctx.textAlign = 'center';
         ctx.fillText('Error loading data', ctx.canvas.width / 2, ctx.canvas.height / 2);
         
@@ -200,13 +225,26 @@ function loadExerciseProgression(exerciseName, canvasId, prValueId = null, prDat
 
 // Load tracked exercises and create charts
 function loadTrackedExercises() {
+    // Check if charts already exist - if so, only reload if needed
+    const benchPressChart = $('#benchPressChart')[0];
+    const squatChart = $('#squatChart')[0];
+    const deadliftChart = $('#deadliftChart')[0];
+    
+    if (!benchPressChart || !squatChart || !deadliftChart) {
+        console.error('Chart canvas elements not found');
+        return;
+    }
+    
     $.get('/metrics/api/tracked-exercises', (data) => {
         console.log('Tracked exercises:', data);
         
         // Always load the default three exercises with PR display
-        loadExerciseProgression('Bench Press', 'benchPressChart', 'benchPrValue', 'benchPrDate');
-        loadExerciseProgression('Squats', 'squatChart', 'squatPrValue', 'squatPrDate');
-        loadExerciseProgression('Deadlift', 'deadliftChart', 'deadliftPrValue', 'deadliftPrDate');
+        // Small delay to ensure canvas is properly sized
+        setTimeout(() => {
+            loadExerciseProgression('Bench Press', 'benchPressChart', 'benchPrValue', 'benchPrDate');
+            loadExerciseProgression('Squats', 'squatChart', 'squatPrValue', 'squatPrDate');
+            loadExerciseProgression('Deadlift', 'deadliftChart', 'deadliftPrValue', 'deadliftPrDate');
+        }, 150);
         
         // Load additional tracked exercises
         const additionalExercises = data.tracked_exercises.filter(ex => 
@@ -451,8 +489,11 @@ function showNotification(message, type = 'info') {
 
 // Initialize on document ready
 $(document).ready(function () {
-    // Load tracked exercises and their progression
-    loadTrackedExercises();
+    // Only load tracked exercises if Main Lifts tab is active (default)
+    // Small delay to ensure canvas elements are properly sized
+    setTimeout(() => {
+        loadTrackedExercises();
+    }, 100);
     
     // Custom exercise selection
     $('#customExerciseSelect').on('change', function () {
@@ -496,6 +537,13 @@ $(document).ready(function () {
         // Load analytics data when Analytics tab is clicked
         if (tabContentId === 'analytics') {
             loadAnalyticsData();
+        }
+        
+        // Load tracked exercises when Main Lifts tab is clicked
+        if (tabContentId === 'main-lifts') {
+            setTimeout(() => {
+                loadTrackedExercises();
+            }, 100);
         }
     });
 
@@ -680,15 +728,15 @@ $(document).ready(function () {
             const gridDiv = document.getElementById('body-parts-grid');
             gridDiv.innerHTML = '';
             allBodyParts.forEach(bp => {
-                const bgColorClass = bp.status === 'overworked' ? 'bg-red-50 border-red-300' :
-                                    bp.status === 'balanced' ? 'bg-green-50 border-green-300' :
-                                    bp.status === 'underworked' ? 'bg-yellow-50 border-yellow-300' :
-                                    'bg-gray-50 border-gray-300';
+                const bgColorClass = bp.status === 'overworked' ? 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700/50' :
+                                    bp.status === 'balanced' ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700/50' :
+                                    bp.status === 'underworked' ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-300 dark:border-yellow-700/50' :
+                                    'bg-gray-50 dark:bg-gray-700/50 border-gray-300 dark:border-gray-600';
                 
-                const textColorClass = bp.status === 'overworked' ? 'text-red-800' :
-                                      bp.status === 'balanced' ? 'text-green-800' :
-                                      bp.status === 'underworked' ? 'text-yellow-800' :
-                                      'text-gray-700';
+                const textColorClass = bp.status === 'overworked' ? 'text-red-800 dark:text-red-400' :
+                                      bp.status === 'balanced' ? 'text-green-800 dark:text-green-400' :
+                                      bp.status === 'underworked' ? 'text-yellow-800 dark:text-yellow-400' :
+                                      'text-gray-700 dark:text-gray-300';
                 
                 const emoji = bp.status === 'overworked' ? '🔥' :
                              bp.status === 'balanced' ? '✅' :
@@ -699,7 +747,7 @@ $(document).ready(function () {
                     <div class="border-2 ${bgColorClass} rounded-xl p-4 text-center hover:shadow-lg transition-all transform hover:scale-105">
                         <div class="text-2xl mb-2">${emoji}</div>
                         <div class="font-bold ${textColorClass} text-sm mb-1">${bp.name}</div>
-                        <div class="text-xs text-gray-600 font-semibold">${bp.days_worked} day${bp.days_worked !== 1 ? 's' : ''}</div>
+                        <div class="text-xs text-gray-600 dark:text-gray-400 font-semibold">${bp.days_worked} day${bp.days_worked !== 1 ? 's' : ''}</div>
                         <div class="text-xs ${textColorClass} font-medium mt-1 capitalize">${bp.status}</div>
                     </div>
                 `;

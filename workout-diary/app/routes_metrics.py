@@ -28,15 +28,15 @@ def get_recommended_volume(fitness_goal):
 
 @metrics_bp.route('/api/volume/')
 @login_required
-def metrics(user_id):
+def metrics():
     print("loading... volume")
     user = User.query.get(current_user.user_id)
 
     if not user:
         return jsonify({'error': 'User not found'}), 404
 
-    # Get the volume per body part per week
-    volume_per_body_part = Exercise.get_volume_per_body_part_per_week(user_id)
+    # Get the volume per body part per week (only strength exercises)
+    volume_per_body_part = Exercise.get_volume_per_body_part_per_week(current_user.user_id)
     volume_data = {body_part: volume for body_part, volume in volume_per_body_part}
 
     # Get the recommended volume based on the user's fitness goal
@@ -84,20 +84,24 @@ def consistency():
         "streak": streak,
     })
 
-# Strength Progression Endpoint
+# Strength Progression Endpoint (deprecated - use /api/exercise-progression instead)
 # Shows progression for key exercises.
+# NOTE: This endpoint is deprecated but kept for backward compatibility.
+# Use /api/exercise-progression/<exercise_name> for more detailed data.
 @metrics_bp.route('/api/progression/<exercise_name>', methods=['GET'])
 @login_required
 def progression(exercise_name):
     print("loading... progression")
 
-    # Fetch progress for the given exercise
+    # Fetch progress for the given exercise (only strength exercises)
     progress = db.session.query(
         Exercise.date,
         func.max(Exercise.weight).label('max_weight')
     ).filter(
         Exercise.user_id == current_user.user_id,
-        Exercise.exercise_name == exercise_name
+        Exercise.exercise_name == exercise_name,
+        Exercise.exercise_type == 'strength',
+        Exercise.weight.isnot(None)
     ).group_by(Exercise.date).order_by(Exercise.date).all()
 
     print("done... progression")
@@ -117,7 +121,7 @@ def volume_trend():
     # Calculate weekly volume for the past 8 weeks
     past_8_weeks = date.today() - timedelta(weeks=8)
     
-    # Using extract() for more database-agnostic week calculation
+    # Using extract() for more database-agnostic week calculation (only strength exercises)
     volume_data = db.session.query(
         extract('year', Workout.date).label('year'),
         extract('week', Workout.date).label('week'),
@@ -127,7 +131,11 @@ def volume_trend():
         Workout.workout_id == Exercise.workout_id
     ).filter(
         Workout.user_id == current_user.user_id,
-        Workout.date >= past_8_weeks
+        Workout.date >= past_8_weeks,
+        Exercise.exercise_type == 'strength',  # Only count strength exercises
+        Exercise.weight.isnot(None),
+        Exercise.reps.isnot(None),
+        Exercise.sets.isnot(None)
     ).group_by(
         'year',
         'week'
@@ -162,7 +170,7 @@ def body_part_imbalance():
         end_date = datetime.now().date()
         start_date = end_date - timedelta(days=30)
         
-        # Aggregate volume per body part using proper joins through Workout table
+        # Aggregate volume per body part using proper joins through Workout table (only strength exercises)
         volume_data = db.session.query(
             BodyPart.body_part_name,
             func.coalesce(
@@ -177,7 +185,11 @@ def body_part_imbalance():
             Exercise.workout_id == Workout.workout_id
         ).filter(
             Workout.user_id == current_user.user_id,
-            Workout.date.between(start_date, end_date)
+            Workout.date.between(start_date, end_date),
+            Exercise.exercise_type == 'strength',  # Only count strength exercises
+            Exercise.weight.isnot(None),
+            Exercise.reps.isnot(None),
+            Exercise.sets.isnot(None)
         ).group_by(
             BodyPart.body_part_name
         ).all()
@@ -235,8 +247,9 @@ def goal_achievement():
     fitness_goal = user.fitness_goal.lower()
     recommended_volume = get_recommended_volume(fitness_goal)
 
-    # Get weekly volume per body part
-    weekly_volume = Exercise.get_volume_per_body_part_per_week(current_user.user_id)
+    # Get weekly volume per body part (returns list of tuples)
+    weekly_volume_list = Exercise.get_volume_per_body_part_per_week(current_user.user_id)
+    weekly_volume = {body_part: volume for body_part, volume in weekly_volume_list}
     achievement = {body_part: (weekly_volume.get(body_part, 0) / recommended_volume.get(body_part, 1)) * 100
                    for body_part in recommended_volume.keys()}
     print("done... goal achivement")
@@ -295,7 +308,7 @@ def get_exercise_progression(exercise_name):
     print(f"loading... progression for {exercise_name}")
     
     try:
-        # Get progression data for the exercise
+        # Get progression data for the exercise (only strength exercises)
         # Query for max weight per date
         progression_data = db.session.query(
             Exercise.date,
@@ -306,7 +319,11 @@ def get_exercise_progression(exercise_name):
             Exercise.standard_exercise_id == StandardExercise.standard_exercise_id
         ).filter(
             Exercise.user_id == current_user.user_id,
-            StandardExercise.exercise_name == exercise_name
+            StandardExercise.exercise_name == exercise_name,
+            Exercise.exercise_type == 'strength',  # Only count strength exercises
+            Exercise.weight.isnot(None),
+            Exercise.reps.isnot(None),
+            Exercise.sets.isnot(None)
         ).group_by(
             Exercise.date
         ).order_by(

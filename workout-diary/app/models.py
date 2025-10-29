@@ -244,10 +244,17 @@ class Exercise(db.Model):
     standard_exercise_id = db.Column(db.Integer, db.ForeignKey('StandardExercises.standard_exercise_id'), nullable=True)
     custom_exercise_id = db.Column(db.Integer, db.ForeignKey('CustomExercises.custom_exercise_id'), nullable=True)
     exercise_name = db.Column(db.String(50), nullable=True)  # Keep for backward compatibility
-    sets = db.Column(db.Integer, nullable=False)
-    reps = db.Column(db.Integer, nullable=False)
-    weight = db.Column(db.Float, nullable=False)
+    sets = db.Column(db.Integer, nullable=True)  # Nullable for cardio
+    reps = db.Column(db.Integer, nullable=True)  # Nullable for cardio
+    weight = db.Column(db.Float, nullable=True)  # Nullable for cardio
     date = db.Column(db.Date, nullable=False)
+    # Cardio-specific fields
+    duration_minutes = db.Column(db.Float, nullable=True)
+    distance_miles = db.Column(db.Float, nullable=True)
+    distance_km = db.Column(db.Float, nullable=True)
+    intensity = db.Column(db.String(20), nullable=True)  # Low, Moderate, High
+    calories_burned = db.Column(db.Integer, nullable=True)
+    exercise_type = db.Column(db.Enum('strength', 'cardio', name='exercise_type'), default='strength', nullable=False)
 
     # Helper method to get the exercise name dynamically
     def get_exercise_name(self):
@@ -260,17 +267,25 @@ class Exercise(db.Model):
     # Keep existing class methods
     @classmethod
     def get_total_weight_lifted(cls, workout_ids):
-        """Calculate the total weight lifted for a list of workouts"""
+        """Calculate the total weight lifted for a list of workouts (only strength exercises)"""
+        if not workout_ids:
+            return 0
         total_weight = db.session.query(func.sum(cls.weight)).filter(
-            cls.workout_id.in_(workout_ids)
+            cls.workout_id.in_(workout_ids),
+            cls.exercise_type == 'strength',
+            cls.weight.isnot(None)
         ).scalar() or 0
         return total_weight
 
     @classmethod
     def get_total_reps(cls, workout_ids):
-        """Calculate the total reps performed for a list of workouts"""
+        """Calculate the total reps performed for a list of workouts (only strength exercises)"""
+        if not workout_ids:
+            return 0
         total_reps = db.session.query(func.sum(cls.reps)).filter(
-            cls.workout_id.in_(workout_ids)
+            cls.workout_id.in_(workout_ids),
+            cls.exercise_type == 'strength',
+            cls.reps.isnot(None)
         ).scalar() or 0
         return total_reps
     
@@ -279,7 +294,7 @@ class Exercise(db.Model):
         start_of_week = datetime.now() - timedelta(days=datetime.now().weekday())
         end_of_week = start_of_week + timedelta(days=6)
 
-        # Query to get the total volume per body part for the current week
+        # Query to get the total volume per body part for the current week (only strength exercises)
         volume_per_body_part = db.session.query(
             BodyPart.body_part_name,
             func.sum(cls.sets * cls.reps * cls.weight).label('total_volume')
@@ -288,7 +303,11 @@ class Exercise(db.Model):
         ).filter(
             cls.user_id == user_id,
             cls.date >= start_of_week.date(),
-            cls.date <= end_of_week.date()
+            cls.date <= end_of_week.date(),
+            cls.exercise_type == 'strength',  # Only count strength exercises
+            cls.weight.isnot(None),  # Ensure weight is not NULL
+            cls.reps.isnot(None),    # Ensure reps is not NULL
+            cls.sets.isnot(None)     # Ensure sets is not NULL
         ).group_by(
             BodyPart.body_part_name
         ).all()
@@ -365,4 +384,50 @@ class MotivationalQuote(db.Model):
         import random
         quotes = MotivationalQuote.query.filter_by(active=True).all()
         return random.choice(quotes) if quotes else None
+
+
+# Workout Routine models
+class WorkoutRoutine(db.Model):
+    __tablename__ = 'WorkoutRoutines'
+    routine_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('Users.user_id'), nullable=False)
+    routine_name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text)
+    share_token = db.Column(db.String(32), unique=True, nullable=True, index=True)  # For QR code sharing
+    is_imported = db.Column(db.Boolean, default=False, nullable=False)  # Track if routine was imported
+    imported_from_user_id = db.Column(db.Integer, db.ForeignKey('Users.user_id'), nullable=True)  # Original creator
+    created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
+    updated_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+    
+    # Relationship to User (owner)
+    user = db.relationship('User', backref=db.backref('workout_routines', lazy=True), foreign_keys=[user_id])
+    
+    # Relationship to original creator (for imported routines)
+    imported_from_user = db.relationship('User', foreign_keys=[imported_from_user_id], lazy=True)
+    
+    # Relationship to RoutineExercises
+    exercises = db.relationship('RoutineExercise', backref='routine', lazy=True, cascade='all, delete-orphan', order_by='RoutineExercise.exercise_order')
+
+
+class RoutineExercise(db.Model):
+    __tablename__ = 'RoutineExercises'
+    routine_exercise_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    routine_id = db.Column(db.Integer, db.ForeignKey('WorkoutRoutines.routine_id', ondelete='CASCADE'), nullable=False)
+    body_part_id = db.Column(db.Integer, db.ForeignKey('BodyParts.body_part_id'), nullable=False)
+    exercise_name = db.Column(db.String(100), nullable=False)
+    sets = db.Column(db.Integer, nullable=True)
+    reps = db.Column(db.Integer, nullable=True)
+    weight = db.Column(db.Float, nullable=True)  # Target weight (optional)
+    unit = db.Column(db.String(10), default='lb')  # 'lb' or 'kg'
+    exercise_order = db.Column(db.Integer, nullable=False, default=0)  # For ordering exercises
+    exercise_type = db.Column(db.Enum('strength', 'cardio'), default='strength')
+    
+    # Cardio fields (optional)
+    duration_minutes = db.Column(db.Float, nullable=True)
+    distance_miles = db.Column(db.Float, nullable=True)
+    distance_km = db.Column(db.Float, nullable=True)
+    intensity = db.Column(db.String(20), nullable=True)
+    
+    # Relationship to BodyPart
+    body_part = db.relationship('BodyPart', backref='routine_exercises', lazy=True)
     

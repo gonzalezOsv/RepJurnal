@@ -31,3 +31,4 @@ EXPOSE 5000
 # Run Flask by executing the 'app' package as a module
 CMD ["python", "-m", "app"]
 
+

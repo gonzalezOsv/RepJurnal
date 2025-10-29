@@ -386,3 +386,125 @@ ON DUPLICATE KEY UPDATE
 -- ===================================
 -- For test data, run: mysql -u root -p fitness_tracker < test_data.sql
 -- ===================================
+
+-- ===================================
+-- CARDIO SUPPORT - SCHEMA UPDATES
+-- ===================================
+-- Add cardio-specific fields to Exercises table
+-- These changes are additive and safe to run on existing production databases
+-- ===================================
+
+-- Add cardio fields (with default values for backward compatibility)
+-- Note: If columns already exist, these statements will fail - this is safe to ignore
+-- In production, run this migration once when adding cardio support
+
+-- Add duration_minutes column
+ALTER TABLE Exercises 
+ADD COLUMN duration_minutes FLOAT NULL COMMENT 'Duration in minutes for cardio exercises';
+
+-- Add distance_miles column  
+ALTER TABLE Exercises 
+ADD COLUMN distance_miles FLOAT NULL COMMENT 'Distance in miles for cardio exercises';
+
+-- Add distance_km column
+ALTER TABLE Exercises 
+ADD COLUMN distance_km FLOAT NULL COMMENT 'Distance in kilometers for cardio exercises';
+
+-- Add intensity column
+ALTER TABLE Exercises 
+ADD COLUMN intensity VARCHAR(20) NULL COMMENT 'Intensity level: Low, Moderate, High';
+
+-- Add calories_burned column
+ALTER TABLE Exercises 
+ADD COLUMN calories_burned INT NULL COMMENT 'Estimated calories burned';
+
+-- Add exercise_type column
+ALTER TABLE Exercises 
+ADD COLUMN exercise_type ENUM('strength', 'cardio') DEFAULT 'strength' COMMENT 'Type of exercise';
+
+-- Make strength fields nullable for cardio exercises (safe to run multiple times)
+ALTER TABLE Exercises 
+MODIFY COLUMN sets INT NULL COMMENT 'Number of sets (NULL for cardio)',
+MODIFY COLUMN reps INT NULL COMMENT 'Number of reps (NULL for cardio)',
+MODIFY COLUMN weight FLOAT NULL COMMENT 'Weight lifted (NULL for cardio)';
+
+-- Update existing exercises to be strength type (safe to run multiple times)
+UPDATE Exercises SET exercise_type = 'strength' WHERE exercise_type IS NULL OR exercise_type = '';
+
+-- ===================================
+-- CARDIO SCHEMA UPDATES COMPLETE
+-- ===================================
+
+-- ===================================
+-- WORKOUT ROUTINES SCHEMA
+-- ===================================
+-- Add these at the end for production migration safety
+
+-- Workout Routines Table
+CREATE TABLE IF NOT EXISTS WorkoutRoutines (
+    routine_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    routine_name VARCHAR(100) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+    INDEX idx_user (user_id)
+);
+
+-- Routine Exercises Table
+CREATE TABLE IF NOT EXISTS RoutineExercises (
+    routine_exercise_id INT AUTO_INCREMENT PRIMARY KEY,
+    routine_id INT NOT NULL,
+    body_part_id INT NOT NULL,
+    exercise_name VARCHAR(100) NOT NULL,
+    sets INT NULL,
+    reps INT NULL,
+    weight FLOAT NULL,
+    unit VARCHAR(10) DEFAULT 'lb',
+    exercise_order INT NOT NULL DEFAULT 0,
+    exercise_type ENUM('strength', 'cardio') DEFAULT 'strength',
+    duration_minutes FLOAT NULL,
+    distance_miles FLOAT NULL,
+    distance_km FLOAT NULL,
+    intensity VARCHAR(20) NULL,
+    FOREIGN KEY (routine_id) REFERENCES WorkoutRoutines(routine_id) ON DELETE CASCADE,
+    FOREIGN KEY (body_part_id) REFERENCES BodyParts(body_part_id),
+    INDEX idx_routine (routine_id),
+    INDEX idx_exercise_order (routine_id, exercise_order)
+);
+
+-- ===================================
+-- WORKOUT ROUTINES SCHEMA COMPLETE
+-- ===================================
+
+-- ===================================
+-- ROUTINE SHARING SUPPORT
+-- ===================================
+-- Add share_token column for QR code sharing
+-- Safe to run on existing databases (ALTER TABLE IF NOT EXISTS doesn't work, so using a safe check)
+
+-- Add share_token column to WorkoutRoutines
+ALTER TABLE WorkoutRoutines 
+ADD COLUMN share_token VARCHAR(32) NULL UNIQUE,
+ADD INDEX idx_share_token (share_token);
+
+-- ===================================
+-- ROUTINE SHARING COMPLETE
+-- ===================================
+
+-- ===================================
+-- ROUTINE IMPORT TRACKING
+-- ===================================
+-- Add fields to track imported routines and their original creators
+
+-- Add is_imported and imported_from_user_id columns to WorkoutRoutines
+ALTER TABLE WorkoutRoutines 
+ADD COLUMN is_imported BOOLEAN DEFAULT FALSE,
+ADD COLUMN imported_from_user_id INT NULL,
+ADD INDEX idx_imported_from_user (imported_from_user_id),
+ADD FOREIGN KEY (imported_from_user_id) REFERENCES Users(user_id) ON DELETE SET NULL;
+
+-- ===================================
+-- ROUTINE IMPORT TRACKING COMPLETE
+-- ===================================

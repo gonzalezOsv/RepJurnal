@@ -1,0 +1,371 @@
+{% extends "layout_user.html" %}
+
+{% block title %}Workout Routines - RepJournal{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4 transition-colors duration-200">
+    <div class="max-w-7xl mx-auto">
+        
+        <!-- Header - Journal Style -->
+        <div class="mb-6 sm:mb-8">
+            <div class="bg-gradient-to-br from-slate-50 via-white to-indigo-50 dark:from-gray-800 dark:via-gray-900 dark:to-indigo-900 rounded-xl sm:rounded-2xl shadow-lg border-2 border-slate-200 dark:border-gray-700 p-4 sm:p-6 lg:p-8 relative overflow-hidden">
+                <!-- Decorative corner accent -->
+                <div class="absolute top-0 right-0 w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-bl from-indigo-100 dark:from-indigo-900 to-transparent rounded-bl-full opacity-40"></div>
+                
+                <div class="relative z-10 text-center">
+                    <!-- Icon and heading -->
+                    <div class="flex items-center justify-center gap-3 mb-4">
+                        <!-- Icon decoration -->
+                        <div class="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-indigo-600 to-blue-600 dark:from-indigo-500 dark:to-blue-500 rounded-xl flex items-center justify-center shadow-md">
+                            <svg class="w-7 h-7 sm:w-10 sm:h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 16a1 1 0 011-1h4a1 1 0 011 1v3a1 1 0 01-1 1H5a1 1 0 01-1-1v-3zM14 16a1 1 0 011-1h4a1 1 0 011 1v3a1 1 0 01-1 1h-4a1 1 0 01-1-1v-3z"/>
+                            </svg>
+                        </div>
+                        <h1 class="text-2xl sm:text-4xl lg:text-5xl font-extrabold">
+                            <span class="bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-blue-600 to-indigo-700 dark:from-indigo-400 dark:via-blue-400 dark:to-indigo-500">
+                                My Workout Routines
+                            </span>
+                        </h1>
+                    </div>
+                    
+                    <!-- Subtitle -->
+                    <div class="inline-block bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm px-4 py-2 sm:px-6 sm:py-3 rounded-full border-2 border-slate-200 dark:border-gray-700 shadow-sm mb-4">
+                        <p class="text-gray-700 dark:text-gray-300 text-sm sm:text-base lg:text-lg font-medium italic">
+                            Create and manage your <span class="text-blue-600 dark:text-blue-400 font-semibold">custom workout plans</span>
+                        </p>
+                    </div>
+                    
+                    <!-- Decorative separator line -->
+                    <div class="hidden sm:block h-1 w-32 bg-gradient-to-r from-transparent via-indigo-300 dark:via-indigo-700 to-transparent rounded-full mx-auto"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Create New Routine and Import Code Buttons -->
+        <div class="mb-6 flex flex-wrap justify-center gap-4">
+            <button id="createRoutineBtn" class="px-6 py-3 sm:px-8 sm:py-4 bg-gradient-to-r from-indigo-600 to-blue-600 dark:from-indigo-500 dark:to-blue-500 hover:from-indigo-700 hover:to-blue-700 dark:hover:from-indigo-600 dark:hover:to-blue-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2 text-base sm:text-lg">
+                <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+                </svg>
+                Create New Routine
+            </button>
+            <button id="scanQRBtn" class="px-6 py-3 sm:px-8 sm:py-4 bg-gradient-to-r from-green-600 to-teal-600 dark:from-green-500 dark:to-teal-500 hover:from-green-700 hover:to-teal-700 dark:hover:from-green-600 dark:hover:to-teal-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2 text-base sm:text-lg">
+                <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                </svg>
+                Import Code
+            </button>
+        </div>
+
+        <!-- Routines Navigation Tabs -->
+        <div class="mb-6 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border-2 border-gray-200 dark:border-gray-700 p-2">
+            <div class="flex gap-2">
+                <button id="myRoutinesTab" class="routine-tab flex-1 flex items-center justify-center gap-3 px-6 py-4 rounded-xl font-bold text-base transition-all bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-900/30 dark:to-blue-900/30 border-2 border-indigo-300 dark:border-indigo-600 shadow-sm">
+                    <div class="bg-gradient-to-r from-indigo-500 to-blue-500 p-2 rounded-lg">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                    </div>
+                    <span class="text-gray-800 dark:text-gray-100">My Routines</span>
+                    <span id="myRoutinesCount" class="px-2.5 py-1 text-xs font-bold bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 rounded-full">0</span>
+                </button>
+                <button id="importedRoutinesTab" class="routine-tab flex-1 flex items-center justify-center gap-3 px-6 py-4 rounded-xl font-bold text-base transition-all bg-transparent hover:bg-gray-50 dark:hover:bg-gray-700/50 border-2 border-transparent">
+                    <div class="bg-gradient-to-r from-blue-500 to-indigo-500 p-2 rounded-lg">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                        </svg>
+                    </div>
+                    <span class="text-gray-600 dark:text-gray-400">Imported Routines</span>
+                    <span id="importedRoutinesCount" class="px-2.5 py-1 text-xs font-bold bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded-full">0</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Routines Containers -->
+        <div id="my-routines-section" class="routine-section">
+            <div id="my-routines-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Loading state -->
+                <div class="col-span-full text-center py-12">
+                    <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 dark:border-indigo-400 mx-auto mb-4"></div>
+                    <p class="text-gray-500 dark:text-gray-400">Loading routines...</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="imported-routines-section" class="routine-section hidden">
+            <div id="imported-routines-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Empty state - will show message when no imported routines -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Routine Modal -->
+<div id="routineModal" class="hidden fixed inset-0 bg-black bg-opacity-60 dark:bg-black dark:bg-opacity-70 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white dark:bg-gray-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl transform transition-all animate__animated animate__fadeInUp my-8">
+        <!-- Modal Header -->
+        <div class="sticky top-0 bg-gradient-to-r from-indigo-600 to-blue-600 dark:from-indigo-500 dark:to-blue-500 px-6 py-5 flex justify-between items-center z-10">
+            <div class="flex items-center gap-3">
+                <div class="bg-white bg-opacity-20 p-2 rounded-lg">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 16a1 1 0 011-1h4a1 1 0 011 1v3a1 1 0 01-1 1H5a1 1 0 01-1-1v-3zM14 16a1 1 0 011-1h4a1 1 0 011 1v3a1 1 0 01-1 1h-4a1 1 0 01-1-1v-3z"/>
+                    </svg>
+                </div>
+                <h3 id="modalTitle" class="text-2xl font-bold text-white">Create Routine</h3>
+            </div>
+            <button id="closeModal" class="text-white hover:bg-white hover:bg-opacity-20 p-2 rounded-full transition-all">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Modal Content -->
+        <div class="p-6 overflow-y-auto max-h-[calc(90vh-180px)] bg-white dark:bg-gray-800">
+            <form id="routineForm">
+                <!-- Routine Date Selector -->
+                <div class="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900 dark:to-indigo-900 border-2 border-blue-200 dark:border-blue-700 rounded-xl p-4">
+                    <label for="routineDate" class="block text-sm sm:text-base font-bold text-gray-700 dark:text-gray-300 mb-2">📅 Routine Date</label>
+                    <div class="flex gap-2">
+                        <input 
+                            type="date" 
+                            id="routineDate" 
+                            required
+                            class="flex-1 px-4 py-3 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 transition-all text-base text-gray-900 dark:text-gray-100"
+                        />
+                        <button 
+                            type="button"
+                            id="todayRoutineBtn"
+                            class="px-4 sm:px-6 py-3 bg-indigo-600 dark:bg-indigo-500 hover:bg-indigo-700 dark:hover:bg-indigo-600 text-white text-sm sm:text-base font-bold rounded-xl transition-all duration-200 whitespace-nowrap shadow-md hover:shadow-lg">
+                            Today
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-600 dark:text-gray-400 mt-2">This date will be used when executing the routine</p>
+                </div>
+
+                <!-- Routine Name -->
+                <div class="mb-6">
+                    <label for="routineName" class="block text-sm sm:text-base font-bold text-gray-700 dark:text-gray-300 mb-2">📋 Routine Name</label>
+                    <input 
+                        type="text" 
+                        id="routineName" 
+                        required
+                        class="w-full px-4 py-3 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 transition-all text-base text-gray-900 dark:text-gray-100"
+                        placeholder="e.g., Push Day, Pull Day, Full Body">
+                </div>
+
+                <!-- Routine Description -->
+                <div class="mb-6">
+                    <label for="routineDescription" class="block text-sm sm:text-base font-bold text-gray-700 dark:text-gray-300 mb-2">📝 Description (Optional)</label>
+                    <textarea 
+                        id="routineDescription" 
+                        rows="2"
+                        class="w-full px-4 py-3 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 transition-all text-base text-gray-900 dark:text-gray-100"
+                        placeholder="Brief description of this routine..."></textarea>
+                </div>
+
+                <!-- Load Existing Routine Section -->
+                <div class="mb-6 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900 dark:to-pink-900 border-2 border-purple-200 dark:border-purple-700 rounded-xl p-4">
+                    <div class="load-routine-header cursor-pointer flex items-center justify-between mb-3">
+                        <label class="block text-sm sm:text-base font-bold text-gray-700 dark:text-gray-300">📥 Load Existing Routine</label>
+                        <svg class="load-routine-arrow w-5 h-5 text-gray-400 dark:text-gray-500 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </div>
+                    <div class="load-routine-content hidden">
+                        <p class="text-xs text-gray-600 dark:text-gray-400 mb-3">Load a pre-created routine to use as a base and customize on the go</p>
+                        <select id="loadRoutineSelect" class="w-full px-4 py-3 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-400 focus:border-purple-500 dark:focus:border-purple-400 text-base text-gray-900 dark:text-gray-100">
+                            <option value="">Select a routine to load...</option>
+                        </select>
+                        <button type="button" id="loadRoutineBtn" class="mt-3 w-full px-4 py-2 bg-purple-600 dark:bg-purple-500 hover:bg-purple-700 dark:hover:bg-purple-600 text-white text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                            </svg>
+                            Load Routine
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Exercises Section -->
+                <div class="mb-6">
+                    <div class="exercises-header cursor-pointer flex items-center justify-between mb-4 pb-3 border-b-2 border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-600 transition-colors">
+                        <div class="flex items-center gap-3">
+                            <svg class="exercises-arrow w-5 h-5 text-gray-400 dark:text-gray-500 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                            <label class="block text-sm sm:text-base font-bold text-gray-700 dark:text-gray-300">💪 Exercises</label>
+                        </div>
+                        <button type="button" id="addExerciseBtn" class="px-4 py-2 bg-indigo-600 dark:bg-indigo-500 hover:bg-indigo-700 dark:hover:bg-indigo-600 text-white text-sm font-bold rounded-lg transition-all flex items-center gap-2" onclick="event.stopPropagation()">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                            Add Exercise
+                        </button>
+                    </div>
+                    <div id="exercisesListContainer" class="hidden">
+                        <div id="exercisesList" class="space-y-4">
+                            <!-- Exercises will be added here -->
+                        </div>
+                        <div id="emptyExercises" class="text-center py-8 text-gray-500 dark:text-gray-400 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl">
+                            <svg class="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                            <p class="text-sm">No exercises added yet. Click "Add Exercise" to get started.</p>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="sticky bottom-0 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex gap-3">
+            <button id="saveRoutineBtn" type="button" class="flex-1 px-6 py-3 bg-green-600 dark:bg-green-500 hover:bg-green-700 dark:hover:bg-green-600 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
+                Save Routine
+            </button>
+            <button id="cancelModalBtn" type="button" class="flex-1 px-6 py-3 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-bold rounded-xl transition-all">
+                Cancel
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Share Routine Modal -->
+<div id="shareRoutineModal" class="hidden fixed inset-0 bg-black bg-opacity-60 dark:bg-black dark:bg-opacity-70 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white dark:bg-gray-800 rounded-3xl max-w-md w-full shadow-2xl transform transition-all animate__animated animate__fadeInUp">
+        <!-- Modal Header -->
+        <div class="sticky top-0 bg-gradient-to-r from-purple-600 to-indigo-600 dark:from-purple-500 dark:to-indigo-500 px-6 py-5 flex justify-between items-center z-10 rounded-t-3xl">
+            <div class="flex items-center gap-3">
+                <div class="bg-white bg-opacity-20 p-2 rounded-lg">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/>
+                    </svg>
+                </div>
+                <h3 class="text-2xl font-bold text-white">Generate Share Code</h3>
+            </div>
+            <button id="closeShareModal" class="text-white hover:bg-white hover:bg-opacity-20 p-2 rounded-full transition-all">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Modal Content -->
+        <div class="p-6 bg-white dark:bg-gray-800">
+            <div id="shareModalContent" class="text-center">
+                <!-- Loading state -->
+                <div id="shareLoading" class="py-8">
+                    <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 dark:border-purple-400 mx-auto mb-4"></div>
+                    <p class="text-gray-600 dark:text-gray-400">Generating share link...</p>
+                </div>
+
+                <!-- Share URL -->
+                <div id="shareContent" class="hidden">
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Share the link below with others to let them import this routine</p>
+                    
+                    <!-- Share URL -->
+                    <div class="mb-4">
+                        <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-2 text-left">Share Link:</label>
+                        <div class="flex gap-2">
+                            <input 
+                                type="text" 
+                                id="shareUrlInput" 
+                                readonly
+                                class="flex-1 px-4 py-2 bg-gray-50 dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-lg text-sm font-mono text-xs text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-400"
+                            />
+                            <button 
+                                id="copyShareUrlBtn" 
+                                class="px-4 py-2 bg-purple-600 dark:bg-purple-500 hover:bg-purple-700 dark:hover:bg-purple-600 text-white text-sm font-bold rounded-lg transition-all whitespace-nowrap">
+                                Copy
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Revoke Sharing Option -->
+                    <button 
+                        id="revokeShareBtn" 
+                        class="w-full px-4 py-2 bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50 text-red-700 dark:text-red-400 text-sm font-bold rounded-lg transition-all border-2 border-red-300 dark:border-red-700">
+                        Stop Sharing
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Import Code Modal -->
+<div id="scanQRModal" class="hidden fixed inset-0 bg-black bg-opacity-60 dark:bg-black dark:bg-opacity-70 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white dark:bg-gray-800 rounded-3xl max-w-lg w-full shadow-2xl transform transition-all animate__animated animate__fadeInUp">
+        <!-- Modal Header -->
+        <div class="sticky top-0 bg-gradient-to-r from-green-600 to-teal-600 dark:from-green-500 dark:to-teal-500 px-6 py-5 flex justify-between items-center z-10 rounded-t-3xl">
+            <div class="flex items-center gap-3">
+                <div class="bg-white bg-opacity-20 p-2 rounded-lg">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
+                    </svg>
+                </div>
+                <h3 class="text-2xl font-bold text-white">Import Code</h3>
+            </div>
+            <button id="closeScanModal" class="text-white hover:bg-white hover:bg-opacity-20 p-2 rounded-full transition-all">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Modal Content -->
+        <div class="p-6 bg-white dark:bg-gray-800">
+            <div id="scanModalContent">
+                <!-- Manual URL Input Option -->
+                <div class="mb-6">
+                    <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Or paste share URL:</label>
+                    <div class="flex gap-2">
+                        <input 
+                            type="text" 
+                            id="shareUrlInputManual" 
+                            placeholder="https://yoursite.com/share/routine/..."
+                            class="flex-1 px-4 py-3 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 focus:border-green-500 dark:focus:border-green-400 text-base text-gray-900 dark:text-gray-100"
+                        />
+                        <button 
+                            id="importFromUrlBtn" 
+                            class="px-6 py-3 bg-green-600 dark:bg-green-500 hover:bg-green-700 dark:hover:bg-green-600 text-white text-sm font-bold rounded-xl transition-all whitespace-nowrap">
+                            Import
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Paste a shared routine URL to import it into your account</p>
+                </div>
+
+                <!-- Import Preview (hidden until URL is processed) -->
+                <div id="importPreview" class="hidden">
+                    <div class="mb-4 p-4 bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-700 rounded-xl">
+                        <h4 id="importPreviewName" class="text-lg font-bold text-green-800 dark:text-green-300 mb-2"></h4>
+                        <p id="importPreviewDesc" class="text-sm text-green-700 dark:text-green-400 mb-3"></p>
+                        <div id="importPreviewExercises" class="space-y-2 max-h-48 overflow-y-auto"></div>
+                    </div>
+                    <div class="flex gap-3">
+                        <button 
+                            id="confirmImportBtn" 
+                            class="flex-1 px-6 py-3 bg-green-600 dark:bg-green-500 hover:bg-green-700 dark:hover:bg-green-600 text-white font-bold rounded-xl transition-all">
+                            Import Routine
+                        </button>
+                        <button 
+                            id="cancelImportBtn" 
+                            class="px-6 py-3 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-bold rounded-xl transition-all">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    <script src="{{ url_for('static', filename='my_routines.js') }}"></script>
+{% endblock %}
+

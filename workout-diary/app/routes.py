@@ -4,7 +4,7 @@ from urllib.parse import urlparse, urljoin
 
 from flask import Blueprint, jsonify, render_template, request, redirect, url_for, flash, current_app
 from werkzeug.security import generate_password_hash
-from .models import db, User, Workout, Exercise, CustomExercise, MotivationalQuote
+from .models import db, User, Workout, Exercise, CustomExercise, MotivationalQuote, BodyPart, StandardExercise
 from .auth_service import AuthService
 from .validators import (
     validate_registration_data, 
@@ -15,6 +15,7 @@ from .validators import (
 from flask_login import login_user, logout_user, login_required, current_user
 from datetime import datetime, timedelta
 from sqlalchemy import func
+from sqlalchemy.orm import joinedload
 
 
 # Define blueprints
@@ -115,8 +116,12 @@ def dashboard():
     workouts = Workout.get_workouts_for_date(current_user.user_id, selected_date)
     workout_ids = [workout.workout_id for workout in workouts]
 
-    # Fetch exercise details for the selected date's workouts
-    exercises = Exercise.query.filter(Exercise.workout_id.in_(workout_ids)).all()
+    # Fetch exercise details for the selected date's workouts with eager loading to prevent N+1 queries
+    exercises = Exercise.query.options(
+        joinedload(Exercise.body_part),
+        joinedload(Exercise.standard_exercise),
+        joinedload(Exercise.custom_exercise)
+    ).filter(Exercise.workout_id.in_(workout_ids)).all()
 
     # Group exercises by workout, body part, and aggregate similar entries
     workout_exercises = {}
@@ -155,6 +160,19 @@ def dashboard():
     # Convert to float to avoid Decimal type issues in templates
     total_weight_lifted = float(Exercise.get_total_weight_lifted(workout_ids))
     total_reps_performed = float(Exercise.get_total_reps(workout_ids))
+    
+    # Calculate total volume correctly: sum of (weight * reps * sets) for each exercise (only strength)
+    if workout_ids:
+        total_volume = db.session.query(func.sum(Exercise.weight * Exercise.reps * Exercise.sets)).filter(
+            Exercise.workout_id.in_(workout_ids),
+            Exercise.exercise_type == 'strength',
+            Exercise.weight.isnot(None),
+            Exercise.reps.isnot(None),
+            Exercise.sets.isnot(None)
+        ).scalar() or 0
+        total_volume = float(total_volume)
+    else:
+        total_volume = 0.0
 
     # Get the workouts this week for progress snapshot
     workouts_this_week = Workout.get_workouts_this_week(current_user.user_id)
@@ -162,9 +180,14 @@ def dashboard():
     # Calculate workout streak
     workout_streak = Workout.calculate_consecutive_workout_days(current_user.user_id)
     
-    # Get max single lift (all time)
-    max_lift_exercise = db.session.query(Exercise).filter(
-        Exercise.user_id == current_user.user_id
+    # Get max single lift (all time, only strength exercises) with eager loading
+    max_lift_exercise = db.session.query(Exercise).options(
+        joinedload(Exercise.standard_exercise),
+        joinedload(Exercise.custom_exercise)
+    ).filter(
+        Exercise.user_id == current_user.user_id,
+        Exercise.exercise_type == 'strength',
+        Exercise.weight.isnot(None)
     ).order_by(Exercise.weight.desc()).first()
     max_single_lift = float(max_lift_exercise.weight) if max_lift_exercise else 0.0
     max_lift_name = max_lift_exercise.get_exercise_name() if max_lift_exercise else None
@@ -192,36 +215,62 @@ def dashboard():
         print(f"Warning: Could not fetch quote: {e}")
         quote = None
     
-    # Get recent PRs (last 7 days)
+    # Get recent PRs (last 7 days, only strength exercises) - optimized with eager loading
     week_ago = datetime.now() - timedelta(days=7)
     recent_prs = []
-    recent_exercises = db.session.query(Exercise).filter(
-        Exercise.user_id == current_user.user_id,
-        Exercise.date >= week_ago.date()
-    ).order_by(Exercise.weight.desc()).limit(5).all()
     
+    # Get recent exercises with eager loading to prevent N+1 queries
+    recent_exercises = db.session.query(Exercise).options(
+        joinedload(Exercise.standard_exercise),
+        joinedload(Exercise.custom_exercise)
+    ).filter(
+        Exercise.user_id == current_user.user_id,
+        Exercise.date >= week_ago.date(),
+        Exercise.exercise_type == 'strength',
+        Exercise.weight.isnot(None)
+    ).order_by(Exercise.weight.desc()).limit(10).all()  # Get more to filter PRs
+    
+    # Batch check for PRs more efficiently
     for ex in recent_exercises:
-        # Check if this is a PR (highest weight for this exercise)
-        max_for_exercise = db.session.query(func.max(Exercise.weight)).filter(
-            Exercise.user_id == current_user.user_id,
-            Exercise.standard_exercise_id == ex.standard_exercise_id if ex.standard_exercise_id else None,
-            Exercise.custom_exercise_id == ex.custom_exercise_id if ex.custom_exercise_id else None,
-            Exercise.date < ex.date
-        ).scalar()
+        # For standard exercises, check previous max
+        if ex.standard_exercise_id:
+            max_for_exercise = db.session.query(func.max(Exercise.weight)).filter(
+                Exercise.user_id == current_user.user_id,
+                Exercise.standard_exercise_id == ex.standard_exercise_id,
+                Exercise.date < ex.date,
+                Exercise.exercise_type == 'strength',
+                Exercise.weight.isnot(None)
+            ).scalar()
+        elif ex.custom_exercise_id:
+            max_for_exercise = db.session.query(func.max(Exercise.weight)).filter(
+                Exercise.user_id == current_user.user_id,
+                Exercise.custom_exercise_id == ex.custom_exercise_id,
+                Exercise.date < ex.date,
+                Exercise.exercise_type == 'strength',
+                Exercise.weight.isnot(None)
+            ).scalar()
+        else:
+            max_for_exercise = None
         
-        if max_for_exercise is None or ex.weight > max_for_exercise:
+        if max_for_exercise is None or (ex.weight and float(ex.weight) > float(max_for_exercise)):
             recent_prs.append({
                 'name': ex.get_exercise_name(),
                 'weight': float(ex.weight),
                 'date': ex.date
             })
+            if len(recent_prs) >= 5:  # Limit to 5 PRs
+                break
     
     # Pass data to the template
     return render_template(
         'dashboard.html',
+        current_date=selected_date.strftime('%Y-%m-%d'),
+        current_date_formatted=selected_date.strftime('%B %d, %Y'),
+        is_today=(selected_date.date() == datetime.now().date()),
         workouts_this_week=len(workouts_this_week),
         total_weight_lifted=total_weight_lifted,
         total_reps_performed=total_reps_performed,
+        total_volume=total_volume,
         max_single_lift=max_single_lift,
         max_lift_name=max_lift_name,
         unique_exercises_count=unique_exercises,
@@ -231,7 +280,6 @@ def dashboard():
         user=user_data,
         workouts=workouts,
         workout_exercises=workout_exercises,
-        current_date=selected_date.strftime('%Y-%m-%d'),
         workouts_exist=workouts_exist
     )
 

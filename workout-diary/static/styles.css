@@ -106,6 +106,9 @@ body {
 }
 
 
+/* Import reusable components */
+@import 'components.css';
+
 .btn {
     @apply text-center text-white px-6 py-3 rounded-lg shadow-lg transition;
 }
@@ -116,4 +119,16 @@ body {
 
 .btn-secondary {
     @apply bg-gray-800 hover:bg-gray-700;
+}
+
+/* Dark mode base styles */
+.dark {
+    color-scheme: dark;
+}
+
+/* Smooth transitions for dark mode */
+* {
+    transition-property: background-color, border-color, color, fill, stroke;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 200ms;
 }

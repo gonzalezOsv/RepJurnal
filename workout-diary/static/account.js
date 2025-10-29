@@ -3,7 +3,7 @@ $(document).ready(function () {
     const form = $('#accountForm');
     const editButton = $('#editButton');
     const saveButton = $('#saveButton');
-    const inputs = form.find('input, textarea');
+    const inputs = form.find('input:not([type="submit"]), textarea, select');
     
     // Initial state setup
     const initialValues = {};
@@ -13,19 +13,65 @@ $(document).ready(function () {
 
     // Function to toggle edit mode
     function toggleEditMode(isEditable) {
-        inputs.each(function() {
-            const input = $(this);
-            input.prop('readonly', !isEditable);
-            
-            // Toggle background color
-            if (isEditable) {
-                input.removeClass('bg-gray-100')
-                     .addClass('bg-white');
-            } else {
-                input.addClass('bg-gray-100')
-                     .removeClass('bg-white');
-            }
-        });
+        if (isEditable) {
+            // Show inputs, hide displays
+            $('.field-display').addClass('hidden');
+            inputs.each(function() {
+                const input = $(this);
+                const isReadonlyField = input.attr('id') === 'username' || input.attr('id') === 'email';
+                
+                if (!isReadonlyField) {
+                    // Show and enable editable fields
+                    input.removeClass('hidden');
+                    if (input.is('input, textarea')) {
+                        input.prop('readonly', false);
+                        input.prop('disabled', false);
+                    } else if (input.is('select')) {
+                        input.prop('disabled', false);
+                    }
+                }
+                // Username/email are always visible (already shown)
+            });
+        } else {
+            // Show displays, hide inputs (except username/email which stay as readonly inputs)
+            inputs.each(function() {
+                const input = $(this);
+                const isReadonlyField = input.attr('id') === 'username' || input.attr('id') === 'email';
+                
+                if (!isReadonlyField) {
+                    // Hide input and show display
+                    input.addClass('hidden');
+                    
+                    // Find the display element (it's a sibling, not a child)
+                    const fieldContainer = input.closest('div');
+                    const display = fieldContainer.find('.field-display').first();
+                    
+                    if (display.length) {
+                        let displayValue = input.val();
+                        
+                        // Format display values
+                        if (input.attr('id') === 'height_cm' && displayValue) {
+                            displayValue = displayValue + ' cm';
+                        } else if (input.attr('id') === 'weight_kg' && displayValue) {
+                            displayValue = displayValue + ' kg';
+                        } else if (input.attr('id') === 'preferred_workout_time' && displayValue) {
+                            // Format time (HH:mm to 12-hour format)
+                            const timeParts = displayValue.split(':');
+                            if (timeParts.length === 2) {
+                                const hours = parseInt(timeParts[0]);
+                                const minutes = timeParts[1];
+                                const period = hours >= 12 ? 'PM' : 'AM';
+                                const displayHours = hours % 12 || 12;
+                                displayValue = displayHours + ':' + minutes + ' ' + period;
+                            }
+                        }
+                        
+                        // Update display text
+                        display.text(displayValue || 'Not set').removeClass('hidden');
+                    }
+                }
+            });
+        }
 
         // Toggle button visibility with animation
         if (isEditable) {
@@ -40,6 +86,9 @@ $(document).ready(function () {
                      .animate({ opacity: 1 }, 200);
         }
     }
+
+    // Initialize all fields as display mode on page load (text view, not inputs)
+    toggleEditMode(false);
 
     // Edit button click handler
     editButton.on('click', function() {
@@ -78,10 +127,15 @@ $(document).ready(function () {
                     .delay(3000)
                     .fadeOut(500, function() { $(this).remove(); });
                 
-                // Reset form state
+                // Update initial values
+                inputs.each(function() {
+                    initialValues[this.name] = $(this).val();
+                });
+                
+                // Reset form state - this will update displays with new values
                 toggleEditMode(false);
                 saveButton.prop('disabled', false)
-                         .html('<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>Save Changes');
+                         .html('<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>Save');
             },
             error: function(xhr, status, error) {
                 // Show error message
@@ -94,19 +148,30 @@ $(document).ready(function () {
                 
                 // Reset button state
                 saveButton.prop('disabled', false)
-                         .html('<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>Save Changes');
+                         .html('<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>Save');
             }
         });
     });
 
     // Handle escape key to cancel editing
     $(document).on('keyup', function(e) {
-        if (e.key === "Escape" && !editButton.hasClass('hidden')) {
+        if (e.key === "Escape" && editButton.hasClass('hidden')) {
+            // Only cancel if we're in edit mode
             // Reset form values
             inputs.each(function() {
-                $(this).val(initialValues[this.name]);
+                const input = $(this);
+                const isReadonlyField = input.attr('id') === 'username' || input.attr('id') === 'email';
+                if (!isReadonlyField) {
+                    input.val(initialValues[this.name]);
+                }
             });
             toggleEditMode(false);
         }
+    });
+
+    // Prevent form submission unless save button is clicked
+    form.on('submit', function(e) {
+        e.preventDefault();
+        // Only submit via AJAX when save button is clicked
     });
 });
