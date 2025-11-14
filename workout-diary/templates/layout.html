@@ -60,6 +60,7 @@
     <!-- Load JS Files -->
     {% block scripts %}
         <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> <!-- jQuery CDN -->
+        <script src="{{ url_for('static', filename='csrf.js') }}"></script>
     {% endblock %}
 
 </body>

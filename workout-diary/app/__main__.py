@@ -13,9 +13,11 @@ def main():
     if environment in ['development', 'testing']:
         print(f"Initializing database for {environment} environment...")
         initialize_database() # Call your database initialization function
+        os.environ['DB_INIT_DONE'] = 'true'
     elif auto_init:
         print("AUTO_INIT_DB is enabled. Initializing database for production...")
         initialize_database()
+        os.environ['DB_INIT_DONE'] = 'true'
     else:
         print(f"Running in {environment} environment. Skipping database initialization.")
 

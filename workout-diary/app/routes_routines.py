@@ -1,9 +1,10 @@
-from flask import Blueprint, jsonify, render_template, request, url_for
+from flask import Blueprint, jsonify, render_template, request, session
 from flask_login import login_required, current_user
-from .models import db, WorkoutRoutine, RoutineExercise, BodyPart, User
+from .models import db, WorkoutRoutine, RoutineExercise, BodyPart, RoutineSession, RoutineStats, UserRoutineStats
 from .validators import sanitize_input
 from sqlalchemy.orm import joinedload
-import secrets
+from sqlalchemy import func
+from datetime import datetime, timedelta
 
 routines_bp = Blueprint('routines', __name__)
 
@@ -11,18 +12,25 @@ routines_bp = Blueprint('routines', __name__)
 @routines_bp.route('/routines')
 @login_required
 def routines():
-    """Display the workout routines page"""
-    return render_template('my_routines.html')
+    """Display the workout routines page with user privacy settings"""
+    # Pass user privacy settings to enforce on frontend
+    user_settings = {
+        'show_routines_to_public': current_user.show_routines_to_public if hasattr(current_user, 'show_routines_to_public') else False,
+        'profile_visibility': current_user.profile_visibility if hasattr(current_user, 'profile_visibility') else 'private',
+        'show_stats_to_friends': current_user.show_stats_to_friends if hasattr(current_user, 'show_stats_to_friends') else False,
+        'show_workouts_to_friends': current_user.show_workouts_to_friends if hasattr(current_user, 'show_workouts_to_friends') else False
+    }
+    return render_template('my_routines.html', user_settings=user_settings)
 
 
 @routines_bp.route('/api/routines', methods=['GET'])
 @login_required
 def get_routines():
-    """Get all routines for the current user"""
+    """Get all routines for the current user with stats (excludes soft-deleted)"""
     # Use joinedload to eager load relationships for better performance
     routines = WorkoutRoutine.query.options(
         joinedload(WorkoutRoutine.imported_from_user)
-    ).filter_by(user_id=current_user.user_id)\
+    ).filter_by(user_id=current_user.user_id, is_deleted=False)\
         .order_by(WorkoutRoutine.created_at.desc()).all()
     
     routines_data = []
@@ -45,15 +53,44 @@ def get_routines():
                 'intensity': exercise.intensity
             })
         
+        # Get or create stats for this routine
+        routine_stats = RoutineStats.query.filter_by(routine_id=routine.routine_id).first()
+        user_stats = UserRoutineStats.query.filter_by(
+            user_id=current_user.user_id,
+            routine_id=routine.routine_id
+        ).first()
+        
+        # Build stats objects
+        public_stats = {
+            'times_copied': routine_stats.times_copied if routine_stats else 0,
+            'total_completions': routine_stats.total_completions_all_users if routine_stats else 0,
+            'active_users': routine_stats.active_users_count if routine_stats else 0,
+            'popularity_score': routine_stats.popularity_score if routine_stats else 0,
+            'last_used_by_anyone': routine_stats.last_used_by_anyone.isoformat() if routine_stats and routine_stats.last_used_by_anyone else None
+        }
+        
+        personal_stats = {
+            'times_completed': user_stats.times_completed if user_stats else 0,
+            'last_used': user_stats.last_used.isoformat() if user_stats and user_stats.last_used else None,
+            'total_volume': user_stats.total_volume_lifted if user_stats else 0,
+            'current_streak': user_stats.current_streak if user_stats else 0,
+            'longest_streak': user_stats.longest_streak if user_stats else 0,
+            'average_duration': user_stats.average_duration if user_stats else None,
+            'best_time': user_stats.best_completion_time if user_stats else None
+        }
+        
         routines_data.append({
             'routine_id': routine.routine_id,
             'routine_name': routine.routine_name,
             'description': routine.description,
+            'visibility': routine.visibility if routine.visibility else 'private',
             'is_imported': routine.is_imported if routine.is_imported else False,
             'imported_from_username': routine.imported_from_user.username if routine.imported_from_user else None,
             'created_at': routine.created_at.isoformat() if routine.created_at else None,
             'updated_at': routine.updated_at.isoformat() if routine.updated_at else None,
-            'exercises': exercises_data
+            'exercises': exercises_data,
+            'public_stats': public_stats,
+            'personal_stats': personal_stats
         })
     
     return jsonify({'routines': routines_data})
@@ -67,16 +104,31 @@ def create_routine():
     
     routine_name = sanitize_input(data.get('routine_name', '').strip())
     description = sanitize_input(data.get('description', '').strip()) if data.get('description') else None
+    visibility = data.get('visibility', 'private')  # Get visibility setting, default to private
     exercises = data.get('exercises', [])
     
     if not routine_name:
         return jsonify({'error': 'Routine name is required'}), 400
     
+    # Validate visibility value
+    if visibility not in ['public', 'private', 'friends_only']:
+        visibility = 'private'
+    
+    # ENFORCE PRIVACY SETTINGS - Check if user allows public routines
+    if visibility == 'public':
+        show_routines_to_public = getattr(current_user, 'show_routines_to_public', False)
+        if not show_routines_to_public:
+            return jsonify({
+                'error': 'You cannot create public routines. Please enable "Public Routines" in your Account Settings first.',
+                'privacy_restriction': True
+            }), 403
+    
     # Create the routine
     routine = WorkoutRoutine(
         user_id=current_user.user_id,
         routine_name=routine_name,
-        description=description
+        description=description,
+        visibility=visibility
     )
     db.session.add(routine)
     db.session.flush()  # Get the routine_id
@@ -113,6 +165,15 @@ def create_routine():
         
         db.session.add(routine_exercise)
     
+    # Create initial stats records
+    routine_stats = RoutineStats(routine_id=routine.routine_id)
+    user_stats = UserRoutineStats(
+        user_id=current_user.user_id,
+        routine_id=routine.routine_id
+    )
+    db.session.add(routine_stats)
+    db.session.add(user_stats)
+    
     try:
         db.session.commit()
         return jsonify({'message': 'Routine created successfully', 'routine_id': routine.routine_id}), 201
@@ -134,6 +195,20 @@ def update_routine(routine_id):
     
     routine.routine_name = sanitize_input(data.get('routine_name', routine.routine_name).strip())
     routine.description = sanitize_input(data.get('description', '').strip()) if data.get('description') else None
+    
+    # Update visibility if provided
+    if 'visibility' in data:
+        visibility = data.get('visibility', 'private')
+        if visibility in ['public', 'private', 'friends_only']:
+            # ENFORCE PRIVACY SETTINGS - Check if user allows public routines
+            if visibility == 'public':
+                show_routines_to_public = getattr(current_user, 'show_routines_to_public', False)
+                if not show_routines_to_public:
+                    return jsonify({
+                        'error': 'You cannot make routines public. Please enable "Public Routines" in your Account Settings first.',
+                        'privacy_restriction': True
+                    }), 403
+            routine.visibility = visibility
     
     # Delete existing exercises
     RoutineExercise.query.filter_by(routine_id=routine_id).delete()
@@ -182,16 +257,42 @@ def update_routine(routine_id):
 @routines_bp.route('/api/routines/<int:routine_id>', methods=['DELETE'])
 @login_required
 def delete_routine(routine_id):
-    """Delete a workout routine"""
+    """
+    Delete a workout routine.
+    - Imported routines: Soft delete (can be restored)
+    - User-created routines: Hard delete (permanent)
+    """
     routine = WorkoutRoutine.query.filter_by(
         routine_id=routine_id,
         user_id=current_user.user_id
     ).first_or_404()
     
     try:
-        db.session.delete(routine)
-        db.session.commit()
-        return jsonify({'message': 'Routine deleted successfully'}), 200
+        if routine.is_imported:
+            # Soft delete for imported routines (can restore later)
+            routine.is_deleted = True
+            routine.deleted_at = datetime.utcnow()
+            db.session.commit()
+            return jsonify({
+                'message': 'Routine removed (can be restored)',
+                'soft_delete': True
+            }), 200
+        else:
+            # Remove dependent analytics records to avoid FK constraint issues
+            RoutineSession.query.filter_by(routine_id=routine.routine_id).delete(synchronize_session=False)
+            UserRoutineStats.query.filter_by(routine_id=routine.routine_id).delete(synchronize_session=False)
+            RoutineStats.query.filter_by(routine_id=routine.routine_id).delete(synchronize_session=False)
+
+            # Remove exercises explicitly (safety in case cascade not enforced)
+            RoutineExercise.query.filter_by(routine_id=routine.routine_id).delete(synchronize_session=False)
+
+            # Hard delete for user-created routines
+            db.session.delete(routine)
+            db.session.commit()
+            return jsonify({
+                'message': 'Routine deleted permanently',
+                'soft_delete': False
+            }), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -255,236 +356,141 @@ def execute_routine(routine_id):
         return jsonify({'error': str(e)}), 500
 
 
-@routines_bp.route('/share/routine/<token>', methods=['GET'])
-def get_shared_routine(token):
+@routines_bp.route('/api/routines/<int:routine_id>/start-workout', methods=['POST'])
+@login_required
+def start_workout_session(routine_id):
     """
-    Public endpoint to retrieve a shared routine by token.
-    No authentication required - this is for sharing.
-    Security: Token must exist and be valid.
+    Store routine_id in session for auto-loading in workout logger.
+    This avoids exposing IDs in URL parameters.
+    Security: Verify user owns the routine before storing in session.
     """
-    from flask import current_app
-    
-    # Validate token format (should be 32 character URL-safe string)
-    if not token or len(token) != 32 or not all(c.isalnum() or c in '-_' for c in token):
-        current_app.logger.warning(f"Invalid share token format attempted: {token[:10] if token else 'None'}...")
-        return jsonify({'error': 'Invalid share token'}), 400
-    
-    # Find routine by share token
-    routine = WorkoutRoutine.query.filter_by(share_token=token).first()
+    # Verify the routine exists and belongs to the current user
+    routine = WorkoutRoutine.query.filter_by(
+        routine_id=routine_id,
+        user_id=current_user.user_id
+    ).first()
     
     if not routine:
-        current_app.logger.warning(f"Share token not found: {token[:10]}...")
-        return jsonify({'error': 'Routine not found or no longer available'}), 404
+        return jsonify({'error': 'Routine not found or access denied'}), 404
     
-    # Build routine data (do not include user_id or sensitive info)
-    exercises_data = []
-    for exercise in routine.exercises:
-        exercises_data.append({
-            'body_part': exercise.body_part.body_part_name if exercise.body_part else None,
-            'exercise_name': exercise.exercise_name,
-            'sets': exercise.sets,
-            'reps': exercise.reps,
-            'weight': exercise.weight,
-            'unit': exercise.unit,
-            'exercise_order': exercise.exercise_order,
-            'exercise_type': exercise.exercise_type,
-            'duration_minutes': exercise.duration_minutes,
-            'distance_miles': exercise.distance_miles,
-            'distance_km': exercise.distance_km,
-            'intensity': exercise.intensity
-        })
+    # Store routine_id in session (server-side, secure)
+    session['start_routine_id'] = routine_id
+    session.modified = True
     
-    # Get creator's username (safe for sharing)
-    creator_username = routine.user.username if routine.user else None
-    
-    # Return routine data (safe for public sharing - only creator username, no user_id)
     return jsonify({
-        'routine_name': routine.routine_name,
-        'description': routine.description,
-        'exercises': exercises_data,
-        'created_at': routine.created_at.isoformat() if routine.created_at else None,
-        'creator_username': creator_username  # Include creator username for import tracking
+        'message': 'Routine session set',
+        'redirect_url': '/repLog'
     }), 200
 
 
-@routines_bp.route('/api/routines/<int:routine_id>/share-token', methods=['POST'])
+@routines_bp.route('/api/routines/get-start-session', methods=['GET'])
 @login_required
-def generate_share_token(routine_id):
+def get_start_session():
     """
-    Generate or retrieve a share token for a routine.
-    Only the routine owner can generate a share token.
+    Get and clear the start_routine_id from session.
+    This is called by repLogger on page load.
+    Returns routine_id if set, then clears it (one-time use).
     """
-    from flask import current_app
+    routine_id = session.pop('start_routine_id', None)
     
-    routine = WorkoutRoutine.query.filter_by(
-        routine_id=routine_id,
-        user_id=current_user.user_id
-    ).first_or_404()
+    if routine_id:
+        # Verify the routine still exists and belongs to user
+        routine = WorkoutRoutine.query.filter_by(
+            routine_id=routine_id,
+            user_id=current_user.user_id
+        ).first()
+        
+        if routine:
+            return jsonify({'routine_id': routine_id}), 200
     
-    # Generate new token if one doesn't exist
-    if not routine.share_token:
-        # Generate cryptographically secure token (32 characters, URL-safe)
-        max_attempts = 10
-        for attempt in range(max_attempts):
-            token = secrets.token_urlsafe(24)[:32]  # Get first 32 chars
-            # Normalize to alphanumeric + dash/underscore only
-            token = ''.join(c if c.isalnum() or c in '-_' else 'x' for c in token)[:32]
-            # Ensure exactly 32 chars
-            while len(token) < 32:
-                token += secrets.token_urlsafe(1)[:1]
-            token = token[:32]
-            
-            # Check for uniqueness
-            existing = WorkoutRoutine.query.filter_by(share_token=token).first()
-            if not existing:
-                routine.share_token = token
-                db.session.commit()
-                current_app.logger.info(f"Generated share token for routine {routine_id} by user {current_user.user_id}")
-                break
-        else:
-            # If we couldn't generate unique token after max attempts
-            db.session.rollback()
-            return jsonify({'error': 'Failed to generate unique share token'}), 500
-    
-    # Build share URL
-    share_url = request.url_root.rstrip('/') + url_for('routines.get_shared_routine', token=routine.share_token)
-    
-    return jsonify({
-        'share_token': routine.share_token,
-        'share_url': share_url
-    }), 200
+    return jsonify({'routine_id': None}), 200
 
 
-@routines_bp.route('/api/routines/<int:routine_id>/share-token', methods=['DELETE'])
+@routines_bp.route('/api/routines/session/start', methods=['POST'])
 @login_required
-def revoke_share_token(routine_id):
+def start_routine_session():
     """
-    Revoke (delete) a share token for a routine.
-    Only the routine owner can revoke sharing.
+    Create a new routine session record when user starts a routine.
+    This tracks when they started, how many exercises, etc. for future analytics.
     """
-    routine = WorkoutRoutine.query.filter_by(
-        routine_id=routine_id,
-        user_id=current_user.user_id
-    ).first_or_404()
-    
-    routine.share_token = None
-    db.session.commit()
-    
-    return jsonify({'message': 'Share token revoked successfully'}), 200
-
-
-@routines_bp.route('/api/routines/import', methods=['POST'])
-@login_required
-def import_routine():
-    """
-    Import a shared routine into the current user's account.
-    Validates and sanitizes all input data.
-    """
-    from flask import current_app
-    
     try:
         data = request.get_json()
         
-        routine_name = sanitize_input(data.get('routine_name', '').strip(), 100)
-        description = sanitize_input(data.get('description', '').strip()) if data.get('description') else None
-        exercises = data.get('exercises', [])
-        creator_username = data.get('creator_username')  # Username of original creator
+        routine_id = data.get('routine_id')
+        total_exercises = data.get('total_exercises', 0)
+        workout_date_str = data.get('workout_date')
         
-        if not routine_name:
-            return jsonify({'error': 'Routine name is required'}), 400
+        if not routine_id or not workout_date_str:
+            return jsonify({'error': 'routine_id and workout_date required'}), 400
         
-        # Validate exercises count (prevent abuse)
-        if len(exercises) > 100:  # Reasonable limit
-            return jsonify({'error': 'Too many exercises in routine'}), 400
+        # Verify routine belongs to user
+        routine = WorkoutRoutine.query.filter_by(
+            routine_id=routine_id,
+            user_id=current_user.user_id
+        ).first()
         
-        # Find the original creator's user_id if username provided
-        imported_from_user_id = None
-        if creator_username:
-            creator_user = User.query.filter_by(username=creator_username).first()
-            if creator_user:
-                imported_from_user_id = creator_user.user_id
+        if not routine:
+            return jsonify({'error': 'Routine not found'}), 404
         
-        # Create the routine
-        new_routine = WorkoutRoutine(
+        # Parse workout date
+        try:
+            workout_date = datetime.strptime(workout_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({'error': 'Invalid date format'}), 400
+        
+        # Create session record
+        routine_session = RoutineSession(
             user_id=current_user.user_id,
-            routine_name=routine_name,
-            description=description,
-            is_imported=True,  # Mark as imported
-            imported_from_user_id=imported_from_user_id  # Track original creator
-            # share_token is NULL for imported routines (user must explicitly share)
+            routine_id=routine_id,
+            total_exercises=total_exercises,
+            workout_date=workout_date,
+            started_at=datetime.utcnow()
         )
-        db.session.add(new_routine)
-        db.session.flush()  # Get the routine_id
         
-        # Add exercises with validation
-        for idx, exercise_data in enumerate(exercises):
-            body_part_name = sanitize_input(exercise_data.get('body_part', ''), 50)
-            body_part = BodyPart.query.filter_by(body_part_name=body_part_name).first()
-            
-            if not body_part:
-                db.session.rollback()
-                return jsonify({'error': f'Invalid body part "{body_part_name}"'}), 400
-            
-            exercise_type = exercise_data.get('exercise_type', 'strength')
-            if exercise_type not in ['strength', 'cardio']:
-                exercise_type = 'strength'  # Default fallback
-            
-            routine_exercise = RoutineExercise(
-                routine_id=new_routine.routine_id,
-                body_part_id=body_part.body_part_id,
-                exercise_name=sanitize_input(exercise_data.get('exercise_name', '').strip(), 100),
-                exercise_order=idx,
-                exercise_type=exercise_type
-            )
-            
-            if exercise_type == 'strength':
-                # Validate and sanitize numeric inputs
-                try:
-                    routine_exercise.sets = int(exercise_data.get('sets')) if exercise_data.get('sets') is not None else None
-                    routine_exercise.reps = int(exercise_data.get('reps')) if exercise_data.get('reps') is not None else None
-                    routine_exercise.weight = float(exercise_data.get('weight')) if exercise_data.get('weight') is not None else None
-                    routine_exercise.unit = sanitize_input(exercise_data.get('unit', 'lb'), 10)
-                    
-                    # Validate ranges (prevent malicious data)
-                    if routine_exercise.sets is not None and (routine_exercise.sets < 0 or routine_exercise.sets > 1000):
-                        raise ValueError('Sets out of valid range')
-                    if routine_exercise.reps is not None and (routine_exercise.reps < 0 or routine_exercise.reps > 10000):
-                        raise ValueError('Reps out of valid range')
-                    if routine_exercise.weight is not None and (routine_exercise.weight < 0 or routine_exercise.weight > 10000):
-                        raise ValueError('Weight out of valid range')
-                except (ValueError, TypeError):
-                    db.session.rollback()
-                    return jsonify({'error': 'Invalid exercise data format'}), 400
-            else:  # cardio
-                try:
-                    routine_exercise.duration_minutes = float(exercise_data.get('duration_minutes')) if exercise_data.get('duration_minutes') is not None else None
-                    routine_exercise.distance_miles = float(exercise_data.get('distance_miles')) if exercise_data.get('distance_miles') is not None else None
-                    routine_exercise.distance_km = float(exercise_data.get('distance_km')) if exercise_data.get('distance_km') is not None else None
-                    routine_exercise.intensity = sanitize_input(exercise_data.get('intensity', ''), 20)
-                    
-                    # Validate ranges
-                    if routine_exercise.duration_minutes is not None and (routine_exercise.duration_minutes < 0 or routine_exercise.duration_minutes > 1440):
-                        raise ValueError('Duration out of valid range')
-                    if routine_exercise.distance_miles is not None and routine_exercise.distance_miles < 0:
-                        raise ValueError('Distance cannot be negative')
-                    if routine_exercise.distance_km is not None and routine_exercise.distance_km < 0:
-                        raise ValueError('Distance cannot be negative')
-                except (ValueError, TypeError):
-                    db.session.rollback()
-                    return jsonify({'error': 'Invalid cardio exercise data format'}), 400
-            
-            db.session.add(routine_exercise)
-        
+        db.session.add(routine_session)
         db.session.commit()
-        current_app.logger.info(f"User {current_user.user_id} imported routine: {routine_name}")
         
         return jsonify({
-            'message': 'Routine imported successfully',
-            'routine_id': new_routine.routine_id
+            'message': 'Routine session started',
+            'session_id': routine_session.session_id
         }), 201
         
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Error importing routine: {str(e)}", exc_info=True)
-        return jsonify({'error': 'Failed to import routine'}), 500
+        return jsonify({'error': str(e)}), 500
+
+
+@routines_bp.route('/api/routines/session/<int:session_id>/finish', methods=['POST'])
+@login_required
+def finish_routine_session(session_id):
+    """
+    Update routine session with completion data.
+    This records when they finished, completion percentage, duration, etc.
+    """
+    try:
+        data = request.get_json()
+        
+        # Find session and verify ownership
+        routine_session = RoutineSession.query.filter_by(
+            session_id=session_id,
+            user_id=current_user.user_id
+        ).first()
+        
+        if not routine_session:
+            return jsonify({'error': 'Session not found'}), 404
+        
+        # Update session with completion data
+        routine_session.completed_at = datetime.utcnow()
+        routine_session.completed_exercises = data.get('completed_exercises', 0)
+        routine_session.is_fully_completed = data.get('is_fully_completed', False)
+        routine_session.completion_percentage = data.get('completion_percentage', 0.0)
+        routine_session.duration_minutes = data.get('duration_minutes')
+        
+        db.session.commit()
+        
+        return jsonify({'message': 'Routine session completed successfully'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
 

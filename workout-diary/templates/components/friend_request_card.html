@@ -1,0 +1,33 @@
+<!-- Friend Request Card Template Component -->
+<!-- This template is used to render incoming/outgoing friend request cards dynamically -->
+<!-- Usage: Clone this template in JavaScript and populate with data -->
+
+<template id="friend-request-card-template">
+    <div class="request-card bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-xl p-4 border border-slate-200 dark:border-slate-700 hover:border-purple-300 dark:hover:border-purple-600 transition-all duration-200 shadow-md hover:shadow-lg">
+        <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3 flex-1 min-w-0">
+                <!-- Avatar -->
+                <div class="request-avatar w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center text-white font-bold text-base flex-shrink-0 shadow-md">
+                    <!-- Initials will be inserted here -->
+                </div>
+                
+                <!-- User info -->
+                <div class="min-w-0 flex-1">
+                    <h4 class="request-name font-bold text-slate-900 dark:text-white text-base truncate"></h4>
+                    <p class="request-username text-sm text-slate-500 dark:text-slate-400 truncate"></p>
+                    <p class="request-date text-xs text-slate-400 dark:text-slate-500"></p>
+                </div>
+            </div>
+            
+            <!-- Action buttons (different for incoming vs outgoing) -->
+            <div class="request-actions flex gap-2">
+                <!-- Will be populated by JavaScript based on request type -->
+            </div>
+        </div>
+    </div>
+</template>
+
+
+
+
+

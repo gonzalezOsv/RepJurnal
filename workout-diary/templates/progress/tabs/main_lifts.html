@@ -1,0 +1,119 @@
+<!-- 
+  Component: Main Lifts Tab
+  Description: User's tracked exercises with progress charts and PRs
+  Features: Dynamic exercise cards, empty state, custom exercise section
+-->
+
+<!-- Main Lifts Tab -->
+<div id="main-lifts" class="tab-content active">
+  
+  <!-- Tracked Exercises Section -->
+  <div class="mb-8 sm:mb-12">
+    <div class="bg-gradient-to-br from-slate-50 via-white to-blue-50 dark:from-gray-800 dark:via-gray-900 dark:to-blue-900 rounded-xl sm:rounded-2xl shadow-lg border-2 border-slate-200 dark:border-gray-700 p-4 sm:p-6 lg:p-8 relative overflow-hidden">
+      <!-- Decorative corner -->
+      <div class="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-blue-100 dark:from-blue-900 to-transparent rounded-tr-full opacity-40"></div>
+      
+      <!-- Page Header -->
+      <div class="relative z-10 mb-8">
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mb-3">
+          <div class="flex items-center justify-center gap-3">
+            <div class="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 dark:from-blue-500 dark:to-indigo-500 rounded-xl flex items-center justify-center shadow-md">
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+              </svg>
+            </div>
+            <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-100">My Tracked Lifts</h2>
+          </div>
+          <button id="manageTrackedBtn" class="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-500 dark:to-indigo-500 hover:from-blue-700 hover:to-indigo-700 dark:hover:from-blue-600 dark:hover:to-indigo-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all duration-300 flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+            </svg>
+            Manage Tracked Lifts
+          </button>
+        </div>
+        <p class="text-center text-gray-600 dark:text-gray-400 text-sm sm:text-base mb-3">Track your most important exercises</p>
+        <div class="h-1 w-32 mx-auto bg-gradient-to-r from-blue-300 via-indigo-300 dark:from-blue-700 dark:via-indigo-700 to-transparent rounded-full"></div>
+      </div>
+    
+      <!-- Dynamic Exercise Cards Container -->
+      <div id="trackedExercisesGrid" class="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 max-w-7xl mx-auto relative z-10">
+        <!-- Exercise cards will be dynamically inserted here -->
+        <div class="col-span-full text-center py-12">
+          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400 mx-auto mb-4"></div>
+          <p class="text-gray-500 dark:text-gray-400">Loading your tracked lifts...</p>
+        </div>
+      </div>
+      
+      <!-- Empty State (shown when no tracked exercises) -->
+      <div id="noTrackedExercises" class="hidden text-center py-12 relative z-10">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 max-w-md mx-auto border-2 border-gray-200 dark:border-gray-700">
+          <div class="w-20 h-20 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/50 dark:to-indigo-900/50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg class="w-10 h-10 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-gray-800 dark:text-gray-100 mb-2">No Tracked Lifts Yet</h3>
+          <p class="text-gray-600 dark:text-gray-400 mb-6">Start tracking your favorite exercises to see your progress over time!</p>
+          <button id="addFirstTrackedBtn" class="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-500 dark:to-indigo-500 hover:from-blue-700 hover:to-indigo-700 dark:hover:from-blue-600 dark:hover:to-indigo-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all duration-300">
+            Add Your First Lift
+          </button>
+        </div>
+      </div>
+      <!-- End tracked exercises grid -->
+    </div>
+    <!-- End journal page wrapper -->
+  </div>
+
+  <!-- Custom Exercise Section (optional additional tracking) -->
+  <div id="customExerciseSection" class="mt-6 sm:mt-8 lg:mt-12">
+    <div class="bg-gradient-to-br from-slate-50 via-white to-purple-50 dark:from-gray-800 dark:via-gray-900 dark:to-purple-900 rounded-xl sm:rounded-2xl shadow-lg border-2 border-slate-200 dark:border-gray-700 p-4 sm:p-6 lg:p-8 relative overflow-hidden">
+      <!-- Decorative corner -->
+      <div class="absolute top-0 left-0 w-32 h-32 bg-gradient-to-br from-purple-100 dark:from-purple-900 to-transparent rounded-br-full opacity-40"></div>
+      
+      <div class="relative z-10">
+        <div class="flex flex-col items-center mb-6 gap-4">
+          <div class="flex items-center justify-center gap-3">
+            <div class="w-10 h-10 bg-gradient-to-br from-purple-600 to-pink-600 dark:from-purple-500 dark:to-pink-500 rounded-xl flex items-center justify-center shadow-md">
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+              </svg>
+            </div>
+            <div class="text-center">
+              <h2 class="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100">Custom Exercise Tracking</h2>
+              <p class="text-gray-600 dark:text-gray-400 text-xs sm:text-sm mt-1">Track any exercise you perform regularly</p>
+            </div>
+          </div>
+          <button id="addExerciseBtn" class="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-500 dark:to-pink-500 hover:from-purple-700 hover:to-pink-700 dark:hover:from-purple-600 dark:hover:to-pink-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+            Add Exercise
+          </button>
+        </div>
+        <div class="h-1 w-full bg-gradient-to-r from-purple-300 via-pink-200 dark:from-purple-700 dark:via-pink-700 to-transparent rounded-full mb-6"></div>
+      </div>
+      
+      <div class="mb-6">
+        <label for="customExerciseSelect" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+          Select an exercise to view its progression
+        </label>
+        <select id="customExerciseSelect" class="w-full p-4 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:border-purple-500 dark:focus:border-purple-400 focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-800 transition-all text-base">
+          <option value="">Choose an exercise...</option>
+        </select>
+      </div>
+
+      <div id="customChartContainer" class="hidden mt-6">
+        <div class="bg-gradient-to-r from-purple-500 to-pink-500 dark:from-purple-600 dark:to-pink-600 rounded-t-2xl p-4 sm:p-6">
+          <h3 id="customChartTitle" class="text-white text-lg sm:text-xl font-bold text-center">Custom Exercise</h3>
+        </div>
+        <div class="bg-gray-50 dark:bg-gray-800 rounded-b-2xl p-4 sm:p-6">
+          <div class="h-64 sm:h-80">
+            <canvas id="customExerciseChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+

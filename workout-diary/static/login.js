@@ -65,6 +65,8 @@ $(document).ready(function () {
         $loadingSpinner.removeClass('hidden');
         $errorMessage.hide();
 
+        const csrfToken = $('#loginForm input[name="csrf_token"]').val() || (window.CSRF && window.CSRF.getToken && window.CSRF.getToken());
+
         $.ajax({
             url: '/auth/login',
             type: 'POST',
@@ -72,8 +74,14 @@ $(document).ready(function () {
             data: JSON.stringify({ 
                 username, 
                 password,
-                remember_me: rememberMe 
+                remember_me: rememberMe,
+                csrf_token: csrfToken
             }),
+            beforeSend: function(xhr) {
+                if (csrfToken) {
+                    xhr.setRequestHeader('X-CSRF-Token', csrfToken);
+                }
+            },
             success: function (data) {
                 // if (data.token) {
                 //     localStorage.setItem('auth_token', data.token);

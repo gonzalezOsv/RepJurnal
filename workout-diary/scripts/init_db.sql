@@ -14,21 +14,38 @@
 -- ===================================
 -- DROP EXISTING TABLES (For clean setup)
 -- ===================================
+-- Drop in reverse dependency order to avoid foreign key constraints
+-- IMPORTANT: Drop stats tables BEFORE routines (foreign key dependency)
+DROP TABLE IF EXISTS UserRoutineStats;
+DROP TABLE IF EXISTS RoutineStats;
+DROP TABLE IF EXISTS RoutineSessions;
+DROP TABLE IF EXISTS RoutineExercises;
+DROP TABLE IF EXISTS WorkoutRoutines;
+DROP TABLE IF EXISTS TrackedExercises;
+DROP TABLE IF EXISTS FriendRequests;
+DROP TABLE IF EXISTS Friends;
 DROP TABLE IF EXISTS Exercises;
 DROP TABLE IF EXISTS CustomExercises;
 DROP TABLE IF EXISTS Workouts;
 DROP TABLE IF EXISTS StandardExercises;
+DROP TABLE IF EXISTS BodyPartCategories;  -- Drop before BodyParts (foreign key dependency)
 DROP TABLE IF EXISTS BodyParts;
 DROP TABLE IF EXISTS user_legal_acceptance;
 DROP TABLE IF EXISTS legal_documents;
 DROP TABLE IF EXISTS PhysicalStats;
+DROP TABLE IF EXISTS MotivationalQuote;
 DROP TABLE IF EXISTS Users;
+
+-- Drop stored procedures (if they exist)
+DROP PROCEDURE IF EXISTS RecordRoutineCompletion;
+DROP PROCEDURE IF EXISTS IncrementRoutineCopyCount;
+DROP PROCEDURE IF EXISTS UpdateRoutinePopularity;
 
 -- ===================================
 -- CREATE TABLES - SCHEMA ONLY
 -- ===================================
 
--- Users Table
+-- Users Table (includes all fields from the start)
 CREATE TABLE IF NOT EXISTS Users (
     user_id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
@@ -57,6 +74,15 @@ CREATE TABLE IF NOT EXISTS Users (
     motivation_level ENUM('Low', 'Moderate', 'High'),
     preferred_workout_time TIME,
     signup_source VARCHAR(100),
+    
+    -- Privacy & Social Fields
+    profile_visibility ENUM('public', 'friends_only', 'private') DEFAULT 'public',
+    show_stats_to_friends BOOLEAN DEFAULT TRUE,
+    show_workouts_to_friends BOOLEAN DEFAULT TRUE,
+    show_routines_to_public BOOLEAN DEFAULT TRUE,
+    bio TEXT,
+    profile_picture_url VARCHAR(255),
+    
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_username (username),
@@ -83,7 +109,7 @@ CREATE TABLE IF NOT EXISTS Workouts (
     workout_name VARCHAR(50),
     notes TEXT,
     FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
-    INDEX idx_user_date (user_id, date)
+    UNIQUE KEY uq_workouts_user_date (user_id, date)
 );
 
 -- Body Parts Table (Reference Data)
@@ -92,6 +118,36 @@ CREATE TABLE IF NOT EXISTS BodyParts (
     body_part_name VARCHAR(50) UNIQUE NOT NULL,
     INDEX idx_name (body_part_name)
 );
+
+-- Body Part Categories for Analytics
+CREATE TABLE IF NOT EXISTS BodyPartCategories (
+    category_id INT AUTO_INCREMENT PRIMARY KEY,
+    body_part_id INT NOT NULL,
+    anatomical_category ENUM(
+        'Chest',
+        'Shoulders', 
+        'Back',
+        'Arms',
+        'Core',
+        'Legs',
+        'Full Body',
+        'Cardio'
+    ) NOT NULL,
+    muscle_group_type ENUM(
+        'Push',
+        'Pull',
+        'Legs',
+        'Core',
+        'Full Body',
+        'Cardio'
+    ) NOT NULL,
+    is_primary BOOLEAN DEFAULT TRUE,
+    
+    FOREIGN KEY (body_part_id) REFERENCES BodyParts(body_part_id) ON DELETE CASCADE,
+    INDEX idx_body_part (body_part_id),
+    INDEX idx_category (anatomical_category),
+    INDEX idx_muscle_type (muscle_group_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Standard Exercises Table (Reference Data)
 CREATE TABLE IF NOT EXISTS StandardExercises (
@@ -114,10 +170,11 @@ CREATE TABLE IF NOT EXISTS CustomExercises (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
     FOREIGN KEY (body_part_id) REFERENCES BodyParts(body_part_id),
+    UNIQUE KEY uq_custom_exercise_user_name (user_id, exercise_name),
     INDEX idx_user (user_id)
 );
 
--- Exercises Table
+-- Exercises Table (includes strength and cardio fields)
 CREATE TABLE IF NOT EXISTS Exercises (
     exercise_id INT AUTO_INCREMENT PRIMARY KEY,
     workout_id INT NOT NULL,
@@ -126,17 +183,32 @@ CREATE TABLE IF NOT EXISTS Exercises (
     exercise_name VARCHAR(50),
     standard_exercise_id INT NULL,
     custom_exercise_id INT NULL,
-    sets INT NOT NULL,
-    reps INT NOT NULL,
-    weight FLOAT NOT NULL,
+    
+    -- Exercise type
+    exercise_type ENUM('strength', 'cardio') DEFAULT 'strength',
+    
+    -- Strength fields (nullable for cardio)
+    sets INT NULL,
+    reps INT NULL,
+    weight FLOAT NULL,
+    
+    -- Cardio fields (nullable for strength)
+    duration_minutes FLOAT NULL,
+    distance_miles FLOAT NULL,
+    distance_km FLOAT NULL,
+    intensity VARCHAR(20) NULL,
+    calories_burned INT NULL,
+    
     date DATE NOT NULL,
+    
     FOREIGN KEY (workout_id) REFERENCES Workouts(workout_id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
     FOREIGN KEY (body_part_id) REFERENCES BodyParts(body_part_id),
     FOREIGN KEY (standard_exercise_id) REFERENCES StandardExercises(standard_exercise_id),
     FOREIGN KEY (custom_exercise_id) REFERENCES CustomExercises(custom_exercise_id),
     INDEX idx_workout (workout_id),
-    INDEX idx_user_date (user_id, date)
+    INDEX idx_user_date (user_id, date),
+    INDEX idx_exercise_type (exercise_type)
 );
 
 -- Legal Documents Table (Reference Data)
@@ -388,68 +460,38 @@ ON DUPLICATE KEY UPDATE
 -- ===================================
 
 -- ===================================
--- CARDIO SUPPORT - SCHEMA UPDATES
--- ===================================
--- Add cardio-specific fields to Exercises table
--- These changes are additive and safe to run on existing production databases
--- ===================================
-
--- Add cardio fields (with default values for backward compatibility)
--- Note: If columns already exist, these statements will fail - this is safe to ignore
--- In production, run this migration once when adding cardio support
-
--- Add duration_minutes column
-ALTER TABLE Exercises 
-ADD COLUMN duration_minutes FLOAT NULL COMMENT 'Duration in minutes for cardio exercises';
-
--- Add distance_miles column  
-ALTER TABLE Exercises 
-ADD COLUMN distance_miles FLOAT NULL COMMENT 'Distance in miles for cardio exercises';
-
--- Add distance_km column
-ALTER TABLE Exercises 
-ADD COLUMN distance_km FLOAT NULL COMMENT 'Distance in kilometers for cardio exercises';
-
--- Add intensity column
-ALTER TABLE Exercises 
-ADD COLUMN intensity VARCHAR(20) NULL COMMENT 'Intensity level: Low, Moderate, High';
-
--- Add calories_burned column
-ALTER TABLE Exercises 
-ADD COLUMN calories_burned INT NULL COMMENT 'Estimated calories burned';
-
--- Add exercise_type column
-ALTER TABLE Exercises 
-ADD COLUMN exercise_type ENUM('strength', 'cardio') DEFAULT 'strength' COMMENT 'Type of exercise';
-
--- Make strength fields nullable for cardio exercises (safe to run multiple times)
-ALTER TABLE Exercises 
-MODIFY COLUMN sets INT NULL COMMENT 'Number of sets (NULL for cardio)',
-MODIFY COLUMN reps INT NULL COMMENT 'Number of reps (NULL for cardio)',
-MODIFY COLUMN weight FLOAT NULL COMMENT 'Weight lifted (NULL for cardio)';
-
--- Update existing exercises to be strength type (safe to run multiple times)
-UPDATE Exercises SET exercise_type = 'strength' WHERE exercise_type IS NULL OR exercise_type = '';
-
--- ===================================
--- CARDIO SCHEMA UPDATES COMPLETE
--- ===================================
-
--- ===================================
 -- WORKOUT ROUTINES SCHEMA
 -- ===================================
--- Add these at the end for production migration safety
 
--- Workout Routines Table
+-- Workout Routines Table (includes all columns from the start)
 CREATE TABLE IF NOT EXISTS WorkoutRoutines (
     routine_id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     routine_name VARCHAR(100) NOT NULL,
     description TEXT,
+    
+    -- Sharing and import fields
+    share_token VARCHAR(32) NULL UNIQUE,
+    is_imported BOOLEAN DEFAULT FALSE,
+    imported_from_user_id INT NULL,
+    
+    -- Privacy field
+    visibility ENUM('public', 'friends_only', 'private') DEFAULT 'private',
+    
+    -- Soft delete (for imported routines - allows quick restore)
+    is_deleted BOOLEAN DEFAULT FALSE,
+    deleted_at TIMESTAMP NULL,
+    
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
     FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
-    INDEX idx_user (user_id)
+    FOREIGN KEY (imported_from_user_id) REFERENCES Users(user_id) ON DELETE SET NULL,
+    
+    INDEX idx_user (user_id),
+    INDEX idx_share_token (share_token),
+    INDEX idx_imported_from_user (imported_from_user_id),
+    INDEX idx_deleted (is_deleted)
 );
 
 -- Routine Exercises Table
@@ -478,33 +520,314 @@ CREATE TABLE IF NOT EXISTS RoutineExercises (
 -- WORKOUT ROUTINES SCHEMA COMPLETE
 -- ===================================
 
--- ===================================
--- ROUTINE SHARING SUPPORT
--- ===================================
--- Add share_token column for QR code sharing
--- Safe to run on existing databases (ALTER TABLE IF NOT EXISTS doesn't work, so using a safe check)
+-- Note: All routine sharing, import tracking, and privacy columns are now
+-- included directly in the CREATE TABLE statements above.
+-- No ALTER TABLE statements needed for fresh setups.
 
--- Add share_token column to WorkoutRoutines
-ALTER TABLE WorkoutRoutines 
-ADD COLUMN share_token VARCHAR(32) NULL UNIQUE,
-ADD INDEX idx_share_token (share_token);
+-- Create Routine Sessions table (for tracking routine usage and completion analytics)
+CREATE TABLE IF NOT EXISTS RoutineSessions (
+    session_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    routine_id INT NOT NULL,
+    
+    -- Session timing
+    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    completed_at TIMESTAMP NULL,
+    
+    -- Completion tracking
+    total_exercises INT NOT NULL,
+    completed_exercises INT DEFAULT 0,
+    is_fully_completed BOOLEAN DEFAULT FALSE,
+    completion_percentage FLOAT DEFAULT 0.0,
+    
+    -- Session metadata
+    workout_date DATE NOT NULL,
+    duration_minutes FLOAT NULL,
+    
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (routine_id) REFERENCES WorkoutRoutines(routine_id) ON DELETE CASCADE,
+    
+    INDEX idx_user (user_id),
+    INDEX idx_routine (routine_id),
+    INDEX idx_workout_date (workout_date),
+    INDEX idx_completion (is_fully_completed)
+);
 
 -- ===================================
--- ROUTINE SHARING COMPLETE
+-- ROUTINE STATISTICS TABLES
+-- ===================================
+-- Public statistics for workout routines
+CREATE TABLE IF NOT EXISTS RoutineStats (
+    stat_id INT AUTO_INCREMENT PRIMARY KEY,
+    routine_id INT NOT NULL UNIQUE,
+    
+    -- PUBLIC STATS (visible to everyone who can see the routine)
+    times_copied INT NOT NULL DEFAULT 0 COMMENT 'How many times routine was imported by other users',
+    total_completions_all_users INT NOT NULL DEFAULT 0 COMMENT 'Total completions by all users',
+    active_users_count INT NOT NULL DEFAULT 0 COMMENT 'Users who used it in last 30 days',
+    popularity_score FLOAT NOT NULL DEFAULT 0.0 COMMENT 'Calculated popularity metric',
+    
+    -- Aggregate metrics
+    total_volume_all_users FLOAT NOT NULL DEFAULT 0.0 COMMENT 'Sum of all weight lifted by all users',
+    average_completion_time FLOAT NULL COMMENT 'Average time to complete (minutes)',
+    
+    -- Timestamps
+    last_used_by_anyone TIMESTAMP NULL COMMENT 'Last time anyone used this routine',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    -- Foreign Keys
+    FOREIGN KEY (routine_id) REFERENCES WorkoutRoutines(routine_id) ON DELETE CASCADE,
+    
+    -- Indexes
+    INDEX idx_routine_stats_routine_id (routine_id),
+    INDEX idx_routine_stats_popularity (popularity_score),
+    INDEX idx_routine_stats_times_copied (times_copied)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
+COMMENT='Public statistics for workout routines';
+
+-- Personal statistics per user per routine
+CREATE TABLE IF NOT EXISTS UserRoutineStats (
+    user_routine_stat_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    routine_id INT NOT NULL,
+    
+    -- PERSONAL STATS (only visible to the user)
+    times_completed INT NOT NULL DEFAULT 0 COMMENT 'How many times THIS user completed it',
+    last_used TIMESTAMP NULL COMMENT 'Last time THIS user used it',
+    first_used TIMESTAMP NULL COMMENT 'First time THIS user used it',
+    
+    -- Performance metrics
+    total_volume_lifted FLOAT NOT NULL DEFAULT 0.0 COMMENT 'Total weight lifted by this user',
+    total_exercises_completed INT NOT NULL DEFAULT 0,
+    average_duration FLOAT NULL COMMENT 'Average time for this user (minutes)',
+    
+    -- Completion tracking
+    full_completions INT NOT NULL DEFAULT 0 COMMENT '100% completed sessions',
+    partial_completions INT NOT NULL DEFAULT 0 COMMENT 'Partially completed sessions',
+    
+    -- Best performance
+    best_completion_time FLOAT NULL COMMENT 'Fastest completion (minutes)',
+    personal_record_volume FLOAT NULL COMMENT 'Highest volume in single session',
+    
+    -- Streak tracking
+    current_streak INT NOT NULL DEFAULT 0 COMMENT 'Current consecutive days/weeks',
+    longest_streak INT NOT NULL DEFAULT 0 COMMENT 'Best streak ever',
+    
+    -- Timestamps
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    -- Foreign Keys
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (routine_id) REFERENCES WorkoutRoutines(routine_id) ON DELETE CASCADE,
+    
+    -- Unique constraint: one stats record per user per routine
+    UNIQUE KEY unique_user_routine_stats (user_id, routine_id),
+    
+    -- Indexes
+    INDEX idx_user_routine_stats_user_id (user_id),
+    INDEX idx_user_routine_stats_routine_id (routine_id),
+    INDEX idx_user_routine_stats_times_completed (times_completed),
+    INDEX idx_user_routine_stats_last_used (last_used)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
+COMMENT='Personal statistics for user routine usage';
+
+-- Create Friend Requests table
+CREATE TABLE IF NOT EXISTS FriendRequests (
+    request_id INT AUTO_INCREMENT PRIMARY KEY,
+    sender_id INT NOT NULL,
+    receiver_id INT NOT NULL,
+    status ENUM('pending', 'accepted', 'declined') DEFAULT 'pending',
+    message TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (sender_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (receiver_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+    
+    -- Prevent duplicate requests between same users
+    UNIQUE KEY unique_friend_request (sender_id, receiver_id),
+    
+    INDEX idx_sender (sender_id),
+    INDEX idx_receiver (receiver_id),
+    INDEX idx_status (status)
+);
+
+-- Create Friends table
+CREATE TABLE IF NOT EXISTS Friends (
+    friendship_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    friend_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (friend_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+    
+    -- Prevent duplicate friendships
+    UNIQUE KEY unique_friendship (user_id, friend_id),
+    
+    INDEX idx_user (user_id),
+    INDEX idx_friend (friend_id)
+);
+
+-- Create User Workout Stats view
+CREATE OR REPLACE VIEW UserWorkoutStats AS
+SELECT 
+    u.user_id,
+    u.username,
+    u.first_name,
+    u.last_name,
+    COUNT(DISTINCT w.workout_id) as total_workouts,
+    COUNT(DISTINCT w.date) as total_workout_days,
+    COUNT(DISTINCT e.exercise_id) as total_exercises_logged,
+    COALESCE(SUM(e.sets), 0) as total_sets,
+    COALESCE(SUM(e.sets * e.reps * e.weight), 0) as total_volume_lbs,
+    MIN(w.date) as first_workout_date,
+    MAX(w.date) as last_workout_date,
+    COUNT(DISTINCT wr.routine_id) as total_routines_created
+FROM Users u
+LEFT JOIN Workouts w ON u.user_id = w.user_id
+LEFT JOIN Exercises e ON w.workout_id = e.workout_id AND e.exercise_type = 'strength'
+LEFT JOIN WorkoutRoutines wr ON u.user_id = wr.user_id AND wr.is_imported = FALSE
+GROUP BY u.user_id, u.username, u.first_name, u.last_name;
+
+-- Create Workout Activity Feed view
+CREATE OR REPLACE VIEW WorkoutActivityFeed AS
+SELECT 
+    w.workout_id,
+    w.user_id,
+    u.username,
+    u.first_name,
+    u.last_name,
+    w.date as workout_date,
+    w.notes as workout_notes,
+    COUNT(DISTINCT e.exercise_id) as exercises_count,
+    COUNT(DISTINCT e.body_part_id) as body_parts_count,
+    COALESCE(SUM(CASE WHEN e.exercise_type = 'strength' THEN e.sets ELSE 0 END), 0) as total_sets,
+    COALESCE(SUM(CASE WHEN e.exercise_type = 'strength' THEN e.sets * e.reps * e.weight ELSE 0 END), 0) as total_volume
+FROM Workouts w
+JOIN Users u ON w.user_id = u.user_id
+LEFT JOIN Exercises e ON w.workout_id = e.workout_id
+GROUP BY w.workout_id, w.user_id, u.username, u.first_name, u.last_name, w.date, w.notes
+ORDER BY w.date DESC;
+
+-- Add indexes for performance
+CREATE INDEX IF NOT EXISTS idx_users_username ON Users(username);
+CREATE INDEX IF NOT EXISTS idx_users_profile_visibility ON Users(profile_visibility);
+CREATE INDEX IF NOT EXISTS idx_routines_visibility ON WorkoutRoutines(visibility);
+
+-- ===================================
+-- SOCIAL FEATURES COMPLETE
 -- ===================================
 
 -- ===================================
--- ROUTINE IMPORT TRACKING
+-- IMPERIAL/METRIC UNITS PREFERENCE
+-- Added: 2025-01-04
 -- ===================================
--- Add fields to track imported routines and their original creators
 
--- Add is_imported and imported_from_user_id columns to WorkoutRoutines
-ALTER TABLE WorkoutRoutines 
-ADD COLUMN is_imported BOOLEAN DEFAULT FALSE,
-ADD COLUMN imported_from_user_id INT NULL,
-ADD INDEX idx_imported_from_user (imported_from_user_id),
-ADD FOREIGN KEY (imported_from_user_id) REFERENCES Users(user_id) ON DELETE SET NULL;
+-- Add preferred units column to Users table
+-- Default to imperial since this is a US-focused app
+ALTER TABLE Users 
+ADD COLUMN IF NOT EXISTS preferred_units ENUM('metric', 'imperial') DEFAULT 'imperial' 
+AFTER preferred_workout_time;
+
+-- Note: height_cm and weight_kg remain the source of truth in the database
+-- The frontend displays imperial primarily (ft/in, lbs) with metric as alternative
+-- Users can enter values in either unit system - they auto-convert
 
 -- ===================================
--- ROUTINE IMPORT TRACKING COMPLETE
+-- ANALYTICS REFERENCE DATA (LOCAL/DOCKER ONLY)
 -- ===================================
+-- Ensure comprehensive body parts exist (idempotent for local resets)
+INSERT INTO BodyParts (body_part_name) VALUES
+    ('Chest'),
+    ('Upper Chest'),
+    ('Lower Chest'),
+    ('Shoulders'),
+    ('Front Delts'),
+    ('Side Delts'),
+    ('Rear Delts'),
+    ('Traps'),
+    ('Back'),
+    ('Lats'),
+    ('Upper Back'),
+    ('Mid Back'),
+    ('Lower Back'),
+    ('Biceps'),
+    ('Triceps'),
+    ('Forearms'),
+    ('Abs'),
+    ('Obliques'),
+    ('Core'),
+    ('Serratus'),
+    ('Legs'),
+    ('Quads'),
+    ('Hamstrings'),
+    ('Glutes'),
+    ('Calves'),
+    ('Hip Flexors'),
+    ('Adductors'),
+    ('Abductors'),
+    ('Full Body'),
+    ('Cardio'),
+    ('Neck')
+ON DUPLICATE KEY UPDATE body_part_name = VALUES(body_part_name);
+
+-- Ensure BodyPartCategories mappings exist (idempotent)
+INSERT INTO BodyPartCategories (body_part_id, anatomical_category, muscle_group_type, is_primary)
+SELECT 
+    bp.body_part_id,
+    CASE
+        WHEN bp.body_part_name IN ('Chest', 'Upper Chest', 'Lower Chest') THEN 'Chest'
+        WHEN bp.body_part_name IN ('Shoulders', 'Front Delts', 'Side Delts', 'Rear Delts', 'Traps') THEN 'Shoulders'
+        WHEN bp.body_part_name IN ('Back', 'Lats', 'Upper Back', 'Mid Back', 'Lower Back') THEN 'Back'
+        WHEN bp.body_part_name IN ('Biceps', 'Triceps', 'Forearms') THEN 'Arms'
+        WHEN bp.body_part_name IN ('Abs', 'Obliques', 'Core', 'Serratus') THEN 'Core'
+        WHEN bp.body_part_name IN ('Legs', 'Quads', 'Hamstrings', 'Glutes', 'Calves', 'Hip Flexors', 'Adductors', 'Abductors') THEN 'Legs'
+        WHEN bp.body_part_name = 'Full Body' THEN 'Full Body'
+        WHEN bp.body_part_name IN ('Cardio', 'Neck') THEN 'Cardio'
+        ELSE 'Full Body'
+    END AS anatomical_category,
+    CASE
+        WHEN bp.body_part_name IN ('Chest', 'Upper Chest', 'Lower Chest', 'Shoulders', 'Front Delts', 'Side Delts', 'Triceps') THEN 'Push'
+        WHEN bp.body_part_name IN ('Back', 'Lats', 'Upper Back', 'Mid Back', 'Lower Back', 'Rear Delts', 'Traps', 'Biceps', 'Forearms') THEN 'Pull'
+        WHEN bp.body_part_name IN ('Legs', 'Quads', 'Hamstrings', 'Glutes', 'Calves', 'Hip Flexors', 'Adductors', 'Abductors') THEN 'Legs'
+        WHEN bp.body_part_name IN ('Abs', 'Obliques', 'Core', 'Serratus') THEN 'Core'
+        WHEN bp.body_part_name = 'Full Body' THEN 'Full Body'
+        WHEN bp.body_part_name IN ('Cardio', 'Neck') THEN 'Cardio'
+        ELSE 'Full Body'
+    END AS muscle_group_type,
+    TRUE
+FROM BodyParts bp
+ON DUPLICATE KEY UPDATE
+    anatomical_category = VALUES(anatomical_category),
+    muscle_group_type = VALUES(muscle_group_type),
+    is_primary = VALUES(is_primary);
+
+-- ===================================
+-- Baseline & Goal Profile Enhancements (2025-11-14)
+-- ===================================
+ALTER TABLE Users
+    ADD COLUMN IF NOT EXISTS training_experience ENUM('Beginner', 'Intermediate', 'Advanced') NULL AFTER activity_level;
+
+ALTER TABLE Users
+    ADD COLUMN IF NOT EXISTS weekly_training_frequency TINYINT NULL AFTER training_experience;
+
+ALTER TABLE Users
+    ADD COLUMN IF NOT EXISTS preferred_training_days VARCHAR(120) NULL AFTER weekly_training_frequency;
+
+ALTER TABLE Users
+    ADD COLUMN IF NOT EXISTS preferred_training_environment ENUM('Home', 'Gym', 'Outdoor', 'Hybrid') NULL AFTER preferred_training_days;
+
+ALTER TABLE Users
+    ADD COLUMN IF NOT EXISTS goal_deadline DATE NULL AFTER preferred_workout_time;
+
+ALTER TABLE Users
+    ADD COLUMN IF NOT EXISTS target_strength_focus VARCHAR(255) NULL AFTER target_body_fat_percentage;
+
+ALTER TABLE Users
+    ADD COLUMN IF NOT EXISTS equipment_access VARCHAR(255) NULL AFTER target_strength_focus;
+
+ALTER TABLE Users
+    ADD COLUMN IF NOT EXISTS mobility_limitations TEXT NULL AFTER equipment_access;

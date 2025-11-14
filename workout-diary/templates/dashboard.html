@@ -136,11 +136,6 @@
 
                         <!-- Center: Journal Icon & Date -->
                         <div class="flex-1 flex items-center justify-center gap-3">
-                            <div class="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 dark:from-blue-500 dark:to-indigo-500 rounded-xl flex items-center justify-center shadow-md">
-                                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
-                                </svg>
-                            </div>
                             <div class="text-center">
                                 <h2 class="text-lg sm:text-xl lg:text-2xl font-bold text-gray-800 dark:text-gray-100" id="dashboard-date-display">Today's Workout</h2>
                                 <p class="text-xs sm:text-sm text-gray-600 dark:text-gray-400" id="dashboard-date-detail">{{ current_date }}</p>
@@ -180,14 +175,63 @@
                                 <div class="space-y-2.5 pl-10">
                                     {% for exercise in exercises %}
                                         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 py-2.5 border-b border-gray-100 dark:border-gray-700/50 last:border-0 hover:bg-blue-50/30 dark:hover:bg-gray-800/30 transition-colors rounded px-2 -mx-2">
-                                            <p class="font-semibold text-gray-800 dark:text-gray-100 text-sm sm:text-base">{{ exercise.exercise_name }}</p>
-                                            <div class="flex gap-2.5 text-sm items-center text-gray-600 dark:text-gray-400">
-                                                <span><span class="text-blue-600 dark:text-blue-400 font-bold">{{ exercise.sets }}</span> sets</span>
-                                                <span class="text-gray-300 dark:text-gray-600">•</span>
-                                                <span><span class="text-green-600 dark:text-green-400 font-bold">{{ exercise.reps }}</span> reps</span>
-                                                <span class="text-gray-300 dark:text-gray-600">•</span>
-                                                <span><span class="text-purple-600 dark:text-purple-400 font-bold">{{ exercise.weight }}{{ exercise.unit if exercise.unit else 'lbs' }}</span></span>
+                                            <!-- Exercise Name with Type Badge -->
+                                            <div class="flex items-center gap-2">
+                                                <p class="font-semibold text-gray-800 dark:text-gray-100 text-sm sm:text-base">{{ exercise.exercise_name }}</p>
+                                                {% if exercise.exercise_type == 'cardio' %}
+                                                <span class="px-2 py-0.5 text-xs font-bold bg-orange-100 dark:bg-orange-900/50 text-orange-700 dark:text-orange-300 rounded-full">Cardio</span>
+                                                {% endif %}
                                             </div>
+                                            
+                                            <!-- Exercise Details - Different for Cardio vs Strength -->
+                                            {% if exercise.exercise_type == 'cardio' %}
+                                                <!-- Cardio Details -->
+                                                <div class="flex flex-wrap gap-2.5 text-sm items-center text-gray-600 dark:text-gray-400">
+                                                    {% if exercise.duration_minutes %}
+                                                        <span><span class="text-blue-600 dark:text-blue-400 font-bold">{{ exercise.duration_minutes }}</span> min</span>
+                                                    {% endif %}
+                                                    
+                                                    {% if exercise.distance_miles %}
+                                                        {% if exercise.duration_minutes %}<span class="text-gray-300 dark:text-gray-600">•</span>{% endif %}
+                                                        <span><span class="text-green-600 dark:text-green-400 font-bold">{{ exercise.distance_miles }}</span> miles</span>
+                                                    {% elif exercise.distance_km %}
+                                                        {% if exercise.duration_minutes %}<span class="text-gray-300 dark:text-gray-600">•</span>{% endif %}
+                                                        <span><span class="text-green-600 dark:text-green-400 font-bold">{{ exercise.distance_km }}</span> km</span>
+                                                    {% endif %}
+                                                    
+                                                    {% if exercise.intensity %}
+                                                        {% if exercise.duration_minutes or exercise.distance_miles or exercise.distance_km %}<span class="text-gray-300 dark:text-gray-600">•</span>{% endif %}
+                                                        <span><span class="text-orange-600 dark:text-orange-400 font-bold">{{ exercise.intensity }}</span> intensity</span>
+                                                    {% endif %}
+                                                    
+                                                    {% if exercise.calories_burned %}
+                                                        {% if exercise.duration_minutes or exercise.distance_miles or exercise.distance_km or exercise.intensity %}<span class="text-gray-300 dark:text-gray-600">•</span>{% endif %}
+                                                        <span><span class="text-red-600 dark:text-red-400 font-bold">{{ exercise.calories_burned }}</span> cals</span>
+                                                    {% endif %}
+                                                    
+                                                    {% if exercise.count and exercise.count > 1 %}
+                                                        <span class="text-gray-300 dark:text-gray-600">•</span>
+                                                        <span class="text-xs bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded-full">×{{ exercise.count }}</span>
+                                                    {% endif %}
+                                                    
+                                                    <!-- Fallback if no cardio fields have data -->
+                                                    {% if not exercise.duration_minutes and not exercise.distance_miles and not exercise.distance_km and not exercise.intensity and not exercise.calories_burned %}
+                                                        <span class="text-gray-500 dark:text-gray-400 italic text-xs">Cardio session completed</span>
+                                                    {% endif %}
+                                                    
+                                                    <!-- DEBUG: Temporary - shows what data is available -->
+                                                    <span class="text-xs text-red-500 block mt-1">DEBUG: type={{ exercise.exercise_type }}, dur={{ exercise.duration_minutes }}, dist_mi={{ exercise.distance_miles }}, dist_km={{ exercise.distance_km }}, int={{ exercise.intensity }}, cal={{ exercise.calories_burned }}</span>
+                                                </div>
+                                            {% else %}
+                                                <!-- Strength Training Details -->
+                                                <div class="flex gap-2.5 text-sm items-center text-gray-600 dark:text-gray-400">
+                                                    <span><span class="text-blue-600 dark:text-blue-400 font-bold">{{ exercise.sets }}</span> sets</span>
+                                                    <span class="text-gray-300 dark:text-gray-600">•</span>
+                                                    <span><span class="text-green-600 dark:text-green-400 font-bold">{{ exercise.reps }}</span> reps</span>
+                                                    <span class="text-gray-300 dark:text-gray-600">•</span>
+                                                    <span><span class="text-purple-600 dark:text-purple-400 font-bold">{{ exercise.weight }}{{ exercise.unit if exercise.unit else 'lbs' }}</span></span>
+                                                </div>
+                                            {% endif %}
                                         </div>
                                     {% endfor %}
                                 </div>
