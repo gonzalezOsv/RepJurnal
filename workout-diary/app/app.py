@@ -187,8 +187,31 @@ def create_app():
     try:
         with app.app_context():
             db.create_all()
+            # Explicitly ensure Blocks table exists (critical for login)
+            from sqlalchemy import inspect, text
+            inspector = inspect(db.engine)
+            if 'Blocks' not in inspector.get_table_names():
+                print("⚠️  Blocks table missing, creating directly...")
+                with db.engine.connect() as conn:
+                    conn.execute(text("""
+                        CREATE TABLE IF NOT EXISTS Blocks (
+                            block_id INT AUTO_INCREMENT PRIMARY KEY,
+                            user_id INT NOT NULL,
+                            blocked_user_id INT NOT NULL,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+                            FOREIGN KEY (blocked_user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+                            UNIQUE KEY unique_user_block (user_id, blocked_user_id),
+                            INDEX idx_user (user_id),
+                            INDEX idx_blocked_user (blocked_user_id)
+                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                    """))
+                    conn.commit()
+                print("✅ Blocks table created")
     except Exception as create_err:
         print(f"⚠️  Warning: Could not ensure all tables exist: {create_err}")
+        import traceback
+        print(f"⚠️  Error details: {traceback.format_exc()}")
     
     # Run safe migration to add missing columns and tables (no data deletion)
     # This is safe because the migration script checks if columns/tables exist before adding

@@ -135,6 +135,9 @@ PREPARE stmt FROM @query; EXECUTE stmt; DEALLOCATE PREPARE stmt;"""
                     statements.append(stmt)
                     i += 1
             
+            logger.info(f"Parsed {len(statements)} statements from migration script")
+            logger.debug(f"First few statements: {statements[:3]}")
+            
             # Execute each statement
             for statement in statements:
                 if not statement:
@@ -158,10 +161,13 @@ PREPARE stmt FROM @query; EXECUTE stmt; DEALLOCATE PREPARE stmt;"""
                     # Many errors are expected (columns already exist, etc.) - only log if it's unexpected
                     error_msg = str(sql_err).lower()
                     expected_errors = ['already exists', 'duplicate column', 'duplicate key', 'duplicate entry', 
-                                      'unknown database', 'table doesn\'t exist', 'syntax']
+                                      'unknown database', 'table doesn\'t exist', 'syntax', 'unknown column']
                     if not any(expected in error_msg for expected in expected_errors):
                         logger.warning(f"Error executing statement: {sql_err}")
                         logger.debug(f"Statement was: {statement[:200]}...")
+                    else:
+                        # Log expected errors at debug level only
+                        logger.debug(f"Expected error (continuing): {sql_err}")
                     # Continue with other statements
             
             connection.commit()
