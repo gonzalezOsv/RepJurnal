@@ -28,89 +28,117 @@ def routines():
 def get_routines():
     """Get all routines for the current user with stats (excludes soft-deleted)"""
     try:
-        # Use joinedload to eager load relationships for better performance
-        # Handle is_deleted column gracefully (might not exist in older databases)
+        # Check if WorkoutRoutines table exists
         try:
-            routines = WorkoutRoutine.query.options(
-                joinedload(WorkoutRoutine.imported_from_user)
-            ).filter_by(user_id=current_user.user_id, is_deleted=False)\
-                .order_by(WorkoutRoutine.created_at.desc()).all()
-        except Exception as filter_err:
-            # If is_deleted column doesn't exist, query without it
-            current_app.logger.warning(f"is_deleted column not found, querying without filter: {filter_err}")
-            routines = WorkoutRoutine.query.options(
-                joinedload(WorkoutRoutine.imported_from_user)
-            ).filter_by(user_id=current_user.user_id)\
-                .order_by(WorkoutRoutine.created_at.desc()).all()
+            # Use joinedload to eager load relationships for better performance
+            # Handle is_deleted column gracefully (might not exist in older databases)
+            try:
+                routines = WorkoutRoutine.query.options(
+                    joinedload(WorkoutRoutine.imported_from_user)
+                ).filter_by(user_id=current_user.user_id, is_deleted=False)\
+                    .order_by(WorkoutRoutine.created_at.desc()).all()
+            except Exception as filter_err:
+                # If is_deleted column doesn't exist, query without it
+                current_app.logger.warning(f"is_deleted column not found, querying without filter: {filter_err}")
+                try:
+                    routines = WorkoutRoutine.query.options(
+                        joinedload(WorkoutRoutine.imported_from_user)
+                    ).filter_by(user_id=current_user.user_id)\
+                        .order_by(WorkoutRoutine.created_at.desc()).all()
+                except Exception as query_err:
+                    # If table doesn't exist or query fails, return empty list
+                    current_app.logger.warning(f"Error querying WorkoutRoutines: {query_err}")
+                    return jsonify({'routines': []})
+        except Exception as table_err:
+            # Table might not exist yet
+            current_app.logger.warning(f"WorkoutRoutines table not available: {table_err}")
+            return jsonify({'routines': []})
         
         routines_data = []
         for routine in routines:
             exercises_data = []
-            for exercise in routine.exercises:
-                exercises_data.append({
-                    'routine_exercise_id': exercise.routine_exercise_id,
-                    'body_part': exercise.body_part.body_part_name if exercise.body_part else None,
-                    'exercise_name': exercise.exercise_name,
-                    'sets': exercise.sets,
-                    'reps': exercise.reps,
-                    'weight': exercise.weight,
-                    'unit': exercise.unit,
-                    'exercise_order': exercise.exercise_order,
-                    'exercise_type': exercise.exercise_type,
-                    'duration_minutes': exercise.duration_minutes,
-                    'distance_miles': exercise.distance_miles,
-                    'distance_km': exercise.distance_km,
-                    'intensity': exercise.intensity
-                })
+            # Handle exercises relationship gracefully
+            try:
+                exercises = routine.exercises if hasattr(routine, 'exercises') else []
+            except Exception as exercises_err:
+                current_app.logger.warning(f"Error accessing routine.exercises: {exercises_err}")
+                exercises = []
+            
+            for exercise in exercises:
+                try:
+                    exercises_data.append({
+                        'routine_exercise_id': exercise.routine_exercise_id,
+                        'body_part': exercise.body_part.body_part_name if exercise.body_part else None,
+                        'exercise_name': exercise.exercise_name,
+                        'sets': exercise.sets,
+                        'reps': exercise.reps,
+                        'weight': exercise.weight,
+                        'unit': getattr(exercise, 'unit', 'lb'),
+                        'exercise_order': exercise.exercise_order,
+                        'exercise_type': getattr(exercise, 'exercise_type', 'strength'),
+                        'duration_minutes': getattr(exercise, 'duration_minutes', None),
+                        'distance_miles': getattr(exercise, 'distance_miles', None),
+                        'distance_km': getattr(exercise, 'distance_km', None),
+                        'intensity': getattr(exercise, 'intensity', None)
+                    })
+                except Exception as ex_err:
+                    current_app.logger.warning(f"Error processing exercise: {ex_err}")
+                    continue
             
             # Get or create stats for this routine (handle missing tables gracefully)
+            routine_stats = None
             try:
                 routine_stats = RoutineStats.query.filter_by(routine_id=routine.routine_id).first()
             except Exception as stats_err:
-                current_app.logger.warning(f"RoutineStats table not available: {stats_err}")
-                routine_stats = None
+                # Table might not exist - that's okay
+                current_app.logger.debug(f"RoutineStats query failed (expected if table missing): {stats_err}")
             
+            user_stats = None
             try:
                 user_stats = UserRoutineStats.query.filter_by(
                     user_id=current_user.user_id,
                     routine_id=routine.routine_id
                 ).first()
             except Exception as user_stats_err:
-                current_app.logger.warning(f"UserRoutineStats table not available: {user_stats_err}")
-                user_stats = None
+                # Table might not exist - that's okay
+                current_app.logger.debug(f"UserRoutineStats query failed (expected if table missing): {user_stats_err}")
             
-            # Build stats objects
+            # Build stats objects with safe attribute access
             public_stats = {
-                'times_copied': routine_stats.times_copied if routine_stats else 0,
-                'total_completions': routine_stats.total_completions_all_users if routine_stats else 0,
-                'active_users': routine_stats.active_users_count if routine_stats else 0,
-                'popularity_score': routine_stats.popularity_score if routine_stats else 0,
-                'last_used_by_anyone': routine_stats.last_used_by_anyone.isoformat() if routine_stats and routine_stats.last_used_by_anyone else None
+                'times_copied': getattr(routine_stats, 'times_copied', 0) if routine_stats else 0,
+                'total_completions': getattr(routine_stats, 'total_completions_all_users', 0) if routine_stats else 0,
+                'active_users': getattr(routine_stats, 'active_users_count', 0) if routine_stats else 0,
+                'popularity_score': getattr(routine_stats, 'popularity_score', 0.0) if routine_stats else 0.0,
+                'last_used_by_anyone': routine_stats.last_used_by_anyone.isoformat() if routine_stats and hasattr(routine_stats, 'last_used_by_anyone') and routine_stats.last_used_by_anyone else None
             }
             
             personal_stats = {
-                'times_completed': user_stats.times_completed if user_stats else 0,
-                'last_used': user_stats.last_used.isoformat() if user_stats and user_stats.last_used else None,
-                'total_volume': user_stats.total_volume_lifted if user_stats else 0,
-                'current_streak': user_stats.current_streak if user_stats else 0,
-                'longest_streak': user_stats.longest_streak if user_stats else 0,
-                'average_duration': user_stats.average_duration if user_stats else None,
-                'best_time': user_stats.best_completion_time if user_stats else None
+                'times_completed': getattr(user_stats, 'times_completed', 0) if user_stats else 0,
+                'last_used': user_stats.last_used.isoformat() if user_stats and hasattr(user_stats, 'last_used') and user_stats.last_used else None,
+                'total_volume': getattr(user_stats, 'total_volume_lifted', 0.0) if user_stats else 0.0,
+                'current_streak': getattr(user_stats, 'current_streak', 0) if user_stats else 0,
+                'longest_streak': getattr(user_stats, 'longest_streak', 0) if user_stats else 0,
+                'average_duration': getattr(user_stats, 'average_duration', None) if user_stats else None,
+                'best_time': getattr(user_stats, 'best_completion_time', None) if user_stats else None
             }
             
-            routines_data.append({
-                'routine_id': routine.routine_id,
-                'routine_name': routine.routine_name,
-                'description': routine.description,
-                'visibility': getattr(routine, 'visibility', 'private') or 'private',
-                'is_imported': routine.is_imported if routine.is_imported else False,
-                'imported_from_username': routine.imported_from_user.username if routine.imported_from_user else None,
-                'created_at': routine.created_at.isoformat() if routine.created_at else None,
-                'updated_at': routine.updated_at.isoformat() if routine.updated_at else None,
-                'exercises': exercises_data,
-                'public_stats': public_stats,
-                'personal_stats': personal_stats
-            })
+            try:
+                routines_data.append({
+                    'routine_id': routine.routine_id,
+                    'routine_name': routine.routine_name,
+                    'description': routine.description or '',
+                    'visibility': getattr(routine, 'visibility', 'private') or 'private',
+                    'is_imported': getattr(routine, 'is_imported', False) or False,
+                    'imported_from_username': routine.imported_from_user.username if routine.imported_from_user and hasattr(routine.imported_from_user, 'username') else None,
+                    'created_at': routine.created_at.isoformat() if routine.created_at else None,
+                    'updated_at': routine.updated_at.isoformat() if routine.updated_at else None,
+                    'exercises': exercises_data,
+                    'public_stats': public_stats,
+                    'personal_stats': personal_stats
+                })
+            except Exception as append_err:
+                current_app.logger.error(f"Error appending routine data: {append_err}", exc_info=True)
+                continue
         
         return jsonify({'routines': routines_data})
     
