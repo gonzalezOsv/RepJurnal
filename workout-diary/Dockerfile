@@ -31,5 +31,6 @@ ENV PORT=5000
 # Expose port (Railway will override this)
 EXPOSE 5000
 
-# Run Flask by executing the 'app' package as a module
-CMD ["python", "-m", "app"]
+# Run with Gunicorn for production (recommended)
+# Fallback to Flask dev server if Gunicorn not available (development)
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-5000} --workers 4 --threads 2 --timeout 120 --access-logfile - --error-logfile - --log-level info 'app:create_app()' || python -m app"]

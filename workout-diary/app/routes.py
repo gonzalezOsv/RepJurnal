@@ -4,13 +4,14 @@ from urllib.parse import urlparse, urljoin
 
 from flask import Blueprint, jsonify, render_template, request, redirect, url_for, flash, current_app
 from werkzeug.security import generate_password_hash
-from .models import db, User, Workout, Exercise, CustomExercise, MotivationalQuote, BodyPart, StandardExercise
+from .models import db, User, Workout, Exercise, CustomExercise, MotivationalQuote, BodyPart, StandardExercise, WorkoutRoutine, RoutineExercise, Friend
 from .auth_service import AuthService
 from .validators import (
-    validate_registration_data, 
-    sanitize_input, 
+    validate_registration_data,
+    sanitize_input,
     validate_email,
-    validate_password_strength
+    validate_password_strength,
+    validate_username,
 )
 from flask_login import login_user, logout_user, login_required, current_user
 from datetime import datetime, timedelta
@@ -132,26 +133,59 @@ def dashboard():
         if workout_id not in workout_exercises:
             workout_exercises[workout_id] = defaultdict(list)
 
-        # Use a tuple of exercise_name, weight, and reps as the key
-        exercise_key = (exercise.get_exercise_name(), exercise.weight, exercise.reps)
+        # Determine exercise type - check both attribute and value
+        exercise_type = 'strength'  # Default
+        if hasattr(exercise, 'exercise_type') and exercise.exercise_type:
+            exercise_type = exercise.exercise_type
+        
+        # Create appropriate key based on exercise type
+        if exercise_type == 'cardio':
+            exercise_key = (exercise.get_exercise_name(), exercise.duration_minutes, exercise.intensity)
+        else:
+            exercise_key = (exercise.get_exercise_name(), exercise.weight, exercise.reps)
 
-        # Check if an entry already exists; if yes, aggregate the sets
+        # Check if an entry already exists; if yes, aggregate
         found = False
         for grouped_exercise in workout_exercises[workout_id][body_part_name]:
             if grouped_exercise["key"] == exercise_key:
-                grouped_exercise["sets"] += exercise.sets
+                if exercise_type == 'cardio':
+                    # For cardio, we don't aggregate - each session is separate
+                    # But if exact duplicate, we can note it happened multiple times
+                    grouped_exercise["count"] = grouped_exercise.get("count", 1) + 1
+                else:
+                    # For strength, aggregate sets
+                    grouped_exercise["sets"] += exercise.sets if exercise.sets else 0
                 found = True
                 break
 
         # If no match found, create a new entry
         if not found:
-            workout_exercises[workout_id][body_part_name].append({
+            exercise_dict = {
                 "key": exercise_key,
                 "exercise_name": exercise.get_exercise_name(),
-                "weight": float(exercise.weight),
-                "reps": exercise.reps,
-                "sets": exercise.sets,
-            })
+                "exercise_type": exercise_type,
+            }
+            
+            if exercise_type == 'cardio':
+                exercise_dict.update({
+                    "duration_minutes": float(exercise.duration_minutes) if exercise.duration_minutes else None,
+                    "distance_miles": float(exercise.distance_miles) if exercise.distance_miles else None,
+                    "distance_km": float(exercise.distance_km) if exercise.distance_km else None,
+                    "intensity": exercise.intensity if exercise.intensity else None,
+                    "calories_burned": int(exercise.calories_burned) if exercise.calories_burned else None,
+                    "count": 1
+                })
+                # Debug: log cardio exercise data
+                current_app.logger.debug(f"Cardio exercise: {exercise.get_exercise_name()} - Duration: {exercise.duration_minutes}, Distance: {exercise.distance_miles}, Intensity: {exercise.intensity}")
+            else:
+                exercise_dict.update({
+                    "weight": float(exercise.weight) if exercise.weight else 0,
+                    "reps": exercise.reps if exercise.reps else 0,
+                    "sets": exercise.sets if exercise.sets else 0,
+                    "unit": 'lbs'  # Default unit (Exercise model doesn't have unit field yet)
+                })
+            
+            workout_exercises[workout_id][body_part_name].append(exercise_dict)
 
     # Check if no workouts exist for the selected date
     workouts_exist = bool(workouts)
@@ -355,6 +389,37 @@ def login():
             'message': 'Invalid Username or Password please try again.'
         }), 401
 
+
+@auth_bp.route('/check-username', methods=['POST'])
+def check_username_availability():
+    """
+    Validate username format and report availability status.
+    """
+    data = request.get_json(silent=True) or {}
+    raw_username = data.get('username', '')
+    username = sanitize_input(raw_username, 20)
+
+    is_valid, error_message = validate_username(username)
+    if not is_valid:
+        return jsonify({
+            'available': False,
+            'message': error_message
+        }), 400
+
+    existing_user = get_user_by_username(username)
+
+    if existing_user:
+        return jsonify({
+            'available': False,
+            'message': 'Username is already taken'
+        }), 200
+
+    return jsonify({
+        'available': True,
+        'message': 'Username is available'
+    }), 200
+
+
 @auth_bp.route('/register', methods=['POST'])
 def register_user():
     """
@@ -388,7 +453,7 @@ def register_user():
             f"Registration attempt with existing username: {username} from IP: {request.remote_addr}"
         )
         return jsonify({
-            'message': 'Registration failed. Please try different credentials.',
+            'message': 'Username is already taken. Please choose another.',
             'fields': {'username': 'This username is not available'}
         }), 400
     
@@ -477,4 +542,340 @@ def protected():
         return jsonify({'message': 'Token has expired'}), 401
     except jwt.InvalidTokenError:
         return jsonify({'message': 'Invalid token'}), 401
+
+# ===================================
+# FRIEND ROUTINES API
+# ===================================
+
+@main_bp.route('/friends/api/<int:user_id>/routines', methods=['GET'])
+@login_required
+def get_friend_routines(user_id):
+    """Get public routines from a friend"""
+    try:
+        # Get the friend/user whose routines we're viewing
+        routine_owner = User.query.get(user_id)
+        if not routine_owner:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # ENFORCE PRIVACY SETTING: Check if owner allows sharing routines
+        if not getattr(routine_owner, 'show_routines_to_public', False):
+            return jsonify({
+                'error': 'This user has disabled public routine sharing in their privacy settings',
+                'privacy_restriction': True,
+                'routines': []
+            }), 403
+        
+        # Check if the user is a friend
+        friendship = Friend.query.filter(
+            ((Friend.user_id == current_user.user_id) & (Friend.friend_id == user_id)) |
+            ((Friend.user_id == user_id) & (Friend.friend_id == current_user.user_id))
+        ).first()
+        
+        if not friendship:
+            return jsonify({'error': 'User is not your friend'}), 403
+        
+        # Get the friend's public routines
+        routines = WorkoutRoutine.query.filter(
+            WorkoutRoutine.user_id == user_id,
+            WorkoutRoutine.visibility == 'public'
+        ).all()
+        
+        # Get exercises for each routine
+        routine_data = []
+        for routine in routines:
+            exercises = RoutineExercise.query.filter_by(routine_id=routine.routine_id).order_by(RoutineExercise.exercise_order).all()
+            
+            # Format exercises for frontend
+            exercises_data = []
+            for exercise in exercises:
+                exercise_data = {
+                    'exercise_name': exercise.exercise_name,
+                    'body_part': exercise.body_part_id,  # This will be the body part ID, we might need to get the name
+                    'exercise_type': exercise.exercise_type,
+                    'exercise_order': exercise.exercise_order
+                }
+                
+                if exercise.exercise_type == 'strength':
+                    exercise_data.update({
+                        'sets': exercise.sets,
+                        'reps': exercise.reps,
+                        'weight': exercise.weight,
+                        'unit': exercise.unit
+                    })
+                else:  # cardio
+                    exercise_data.update({
+                        'duration_minutes': exercise.duration_minutes,
+                        'distance_miles': exercise.distance_miles,
+                        'distance_km': exercise.distance_km,
+                        'intensity': exercise.intensity
+                    })
+                
+                exercises_data.append(exercise_data)
+            
+            # Check if current user already imported this routine (and it's not soft-deleted)
+            already_imported = WorkoutRoutine.query.filter(
+                WorkoutRoutine.user_id == current_user.user_id,
+                WorkoutRoutine.imported_from_user_id == user_id,
+                WorkoutRoutine.routine_name.like(f"%{routine.routine_name}%"),
+                WorkoutRoutine.is_deleted == False
+            ).first() is not None
+            
+            routine_data.append({
+                'routine_id': routine.routine_id,
+                'name': routine.routine_name,
+                'description': routine.description,
+                'exercises_count': len(exercises_data),
+                'exercises': exercises_data,
+                'created_at': routine.created_at.isoformat() if routine.created_at else None,
+                'is_imported': routine.is_imported,
+                'already_imported_by_user': already_imported
+            })
+        
+        return jsonify({
+            'routines': routine_data
+        }), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"Error fetching friend routines: {str(e)}")
+        return jsonify({'error': 'Failed to fetch routines'}), 500
+
+@main_bp.route('/friends/api/routines/<int:routine_id>/copy', methods=['POST'])
+@login_required
+def copy_friend_routine(routine_id):
+    """Copy a friend's routine to user's imported routines"""
+    try:
+        # Get the original routine
+        original_routine = WorkoutRoutine.query.get(routine_id)
+        if not original_routine:
+            return jsonify({'error': 'Routine not found'}), 404
+        
+        # Get the routine owner
+        routine_owner = User.query.get(original_routine.user_id)
+        if not routine_owner:
+            return jsonify({'error': 'Routine owner not found'}), 404
+        
+        # ENFORCE PRIVACY SETTING: Check if owner allows sharing routines
+        if not getattr(routine_owner, 'show_routines_to_public', False):
+            return jsonify({
+                'error': 'This user has disabled public routine sharing in their privacy settings',
+                'privacy_restriction': True
+            }), 403
+        
+        # Check if the routine is public
+        if original_routine.visibility != 'public':
+            return jsonify({'error': 'Routine is not public'}), 403
+        
+        # Check if user is friends with the routine owner
+        friendship = Friend.query.filter(
+            ((Friend.user_id == current_user.user_id) & (Friend.friend_id == original_routine.user_id)) |
+            ((Friend.user_id == original_routine.user_id) & (Friend.friend_id == current_user.user_id))
+        ).first()
+        
+        if not friendship:
+            return jsonify({'error': 'You are not friends with this user'}), 403
+        
+        # Check if user already has this routine (including soft-deleted)
+        existing_routine = WorkoutRoutine.query.filter(
+            WorkoutRoutine.user_id == current_user.user_id,
+            WorkoutRoutine.imported_from_user_id == original_routine.user_id,
+            WorkoutRoutine.routine_name.like(f"%{original_routine.routine_name}%")
+        ).first()
+        
+        if existing_routine:
+            # If soft-deleted, restore it instead of creating duplicate
+            if existing_routine.is_deleted:
+                existing_routine.is_deleted = False
+                existing_routine.deleted_at = None
+                db.session.commit()
+                return jsonify({
+                    'message': 'Routine restored successfully',
+                    'routine_id': existing_routine.routine_id,
+                    'restored': True
+                }), 200
+            else:
+                # Already have active copy
+                return jsonify({'error': 'You already have this routine'}), 400
+        
+        # Create a new imported routine
+        new_routine = WorkoutRoutine(
+            user_id=current_user.user_id,
+            routine_name=f"{original_routine.routine_name} (Imported)",
+            description=original_routine.description,
+            visibility='private',  # User's copy is private by default
+            is_imported=True,
+            imported_from_user_id=original_routine.user_id
+        )
+        
+        db.session.add(new_routine)
+        db.session.flush()  # Get the new routine ID
+        
+        # Copy all exercises from the original routine
+        original_exercises = RoutineExercise.query.filter_by(routine_id=routine_id).all()
+        for exercise in original_exercises:
+            new_exercise = RoutineExercise(
+                routine_id=new_routine.routine_id,
+                body_part_id=exercise.body_part_id,
+                exercise_name=exercise.exercise_name,
+                sets=exercise.sets,
+                reps=exercise.reps,
+                weight=exercise.weight,
+                unit=exercise.unit,
+                exercise_order=exercise.exercise_order,
+                exercise_type=exercise.exercise_type,
+                duration_minutes=exercise.duration_minutes,
+                distance_miles=exercise.distance_miles,
+                distance_km=exercise.distance_km,
+                intensity=exercise.intensity
+            )
+            db.session.add(new_exercise)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Routine copied successfully',
+            'routine_id': new_routine.routine_id
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error copying routine: {str(e)}")
+        return jsonify({'error': 'Failed to copy routine'}), 500
+
+
+# ===================================
+# Workout History API
+# ===================================
+
+@main_bp.route('/api/workout-history', methods=['GET'])
+@login_required
+def workout_history():
+    """
+    Get comprehensive workout history - Groups exercises by date
+    """
+    try:
+        days = request.args.get('days', 30, type=int)
+        if days > 9000:  # "all" time
+            start_date = datetime(2000, 1, 1)
+        else:
+            start_date = datetime.now() - timedelta(days=days)
+        
+        # Get all exercises for the user within the date range
+        exercises = Exercise.query.options(
+            joinedload(Exercise.body_part),
+            joinedload(Exercise.standard_exercise),
+            joinedload(Exercise.custom_exercise)
+        ).filter(
+            Exercise.user_id == current_user.user_id,
+            Exercise.date >= start_date.date() if hasattr(start_date, 'date') else start_date
+        ).order_by(Exercise.date.desc(), Exercise.exercise_id).all()
+        
+        # Group exercises by date
+        from collections import defaultdict
+        exercises_by_date = defaultdict(list)
+        
+        for exercise in exercises:
+            exercise_date = exercise.date
+            exercises_by_date[exercise_date].append(exercise)
+        
+        # Prepare workout data
+        workout_data = []
+        total_exercises = 0
+        total_sets = 0
+        total_volume = 0
+        
+        # Process each date as a workout session
+        for workout_date, date_exercises in sorted(exercises_by_date.items(), reverse=True):
+            try:
+                # Find workout record for this date (if exists) to get notes
+                workout_record = Workout.query.filter_by(
+                    user_id=current_user.user_id,
+                    date=workout_date
+                ).first()
+                
+                workout_notes = workout_record.notes if workout_record else None
+                workout_id = workout_record.workout_id if workout_record else None
+                
+                exercises_grouped = {}
+                for exercise in date_exercises:
+                    try:
+                        # Get body part name safely
+                        body_part_name = 'Unknown'
+                        if exercise.body_part:
+                            body_part_name = exercise.body_part.body_part_name
+                        elif exercise.body_part_id:
+                            body_part = BodyPart.query.get(exercise.body_part_id)
+                            if body_part:
+                                body_part_name = body_part.body_part_name
+                        
+                        exercise_name = exercise.exercise_name
+                        if not exercise_name and getattr(exercise, 'standard_exercise', None):
+                            exercise_name = exercise.standard_exercise.exercise_name
+                        if not exercise_name and getattr(exercise, 'custom_exercise', None):
+                            exercise_name = exercise.custom_exercise.exercise_name
+                        if not exercise_name:
+                            exercise_name = 'Unknown Exercise'
+
+                        exercise_data = {
+                            'exercise_name': exercise_name,
+                            'body_part': body_part_name,
+                            'exercise_type': exercise.exercise_type or 'strength',
+                            'sets': exercise.sets,
+                            'reps': exercise.reps,
+                            'weight': float(exercise.weight) if exercise.weight else None,
+                            'unit': 'lb',
+                            'duration_minutes': float(exercise.duration_minutes) if exercise.duration_minutes else None,
+                            'intensity': exercise.intensity
+                        }
+
+                        exercises_grouped.setdefault(body_part_name, []).append(exercise_data)
+                        
+                        # Count for summary
+                        if exercise.sets:
+                            total_sets += exercise.sets
+                        if exercise.weight and exercise.sets and exercise.reps:
+                            total_volume += (exercise.weight * exercise.sets * exercise.reps)
+                    except Exception as ex_error:
+                        current_app.logger.error(f"Error processing exercise: {str(ex_error)}")
+                        continue
+                
+                total_exercises += sum(len(items) for items in exercises_grouped.values())
+                
+                # Create workout session data
+                workout_data.append({
+                    'workout_id': workout_id,
+                    'date': workout_date.isoformat() if workout_date else datetime.now().date().isoformat(),
+                    'notes': workout_notes or '',
+                    'exercises': [
+                        {
+                            'body_part': group_name,
+                            'items': items
+                        }
+                        for group_name, items in exercises_grouped.items()
+                    ]
+                })
+                
+            except Exception as date_error:
+                current_app.logger.error(f"Error processing workout session: {str(date_error)}")
+                continue
+        
+        # Summary stats
+        summary = {
+            'total_workouts': len(workout_data),
+            'total_exercises': total_exercises,
+            'total_sets': total_sets,
+            'total_volume': int(total_volume)
+        }
+        
+        return jsonify({
+            'success': True,
+            'workouts': workout_data,
+            'summary': summary
+        }), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"Error fetching workout history: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to load workout history'
+        }), 500
 

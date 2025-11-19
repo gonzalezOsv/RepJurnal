@@ -10,6 +10,217 @@ $(document).ready(function() {
     const $confirmPasswordInput = $('#register-confirm-password');
     const $passwordStrength = $('#password-strength div');
     const $passwordRequirements = $('#password-requirements');
+    const $usernameInput = $('#register-username');
+    const $usernameValidation = $('#username-validation');
+
+    const USERNAME_MIN_LENGTH = 3;
+    const USERNAME_REGEX = /^[A-Za-z0-9]+$/;
+    let usernameTimeout;
+    let activeUsernameRequest = 0;
+    const usernameState = {
+        value: '',
+        status: 'empty'
+    };
+
+    function getCsrfToken() {
+        return $('#registerForm input[name="csrf_token"]').val() || (window.CSRF && window.CSRF.getToken && window.CSRF.getToken());
+    }
+
+    function showFormError(message) {
+        $errorMessage
+            .text(message)
+            .removeClass('hidden bg-green-100 text-green-700')
+            .addClass('bg-red-100 text-red-700');
+    }
+
+    function clearFormError() {
+        $errorMessage
+            .text('')
+            .removeClass('bg-red-100 text-red-700 bg-green-100 text-green-700')
+            .addClass('hidden');
+    }
+
+    function updateUsernameFeedback(message, variant = 'info') {
+        const variantClass = variant === 'success'
+            ? 'text-green-600'
+            : variant === 'error'
+                ? 'text-red-500'
+                : 'text-gray-500';
+
+        $usernameValidation
+            .text(message || '')
+            .toggleClass('hidden', !message)
+            .removeClass('text-green-600 text-red-500 text-gray-500');
+
+        if (message) {
+            $usernameValidation.addClass(variantClass);
+        }
+    }
+
+    function performUsernameAvailabilityCheck(username) {
+        const csrfToken = getCsrfToken();
+        const requestId = ++activeUsernameRequest;
+        const payload = csrfToken ? { username, csrf_token: csrfToken } : { username };
+
+        usernameState.value = username;
+        usernameState.status = 'checking';
+
+        updateUsernameFeedback('Checking availability...', 'info');
+
+        return $.ajax({
+            url: '/auth/check-username',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(payload),
+            beforeSend: function(xhr) {
+                if (csrfToken) {
+                    xhr.setRequestHeader('X-CSRF-Token', csrfToken);
+                }
+            }
+        })
+        .done(function(data) {
+            if (requestId !== activeUsernameRequest || $usernameInput.val().trim() !== username) {
+                return;
+            }
+
+            if (data.available) {
+                usernameState.status = 'available';
+                updateUsernameFeedback('Username is available', 'success');
+            } else {
+                usernameState.status = 'taken';
+                updateUsernameFeedback('Username is already taken', 'error');
+            }
+        })
+        .fail(function() {
+            if (requestId !== activeUsernameRequest || $usernameInput.val().trim() !== username) {
+                return;
+            }
+
+            usernameState.status = 'error';
+            updateUsernameFeedback('Could not verify username availability. Please try again.', 'error');
+        });
+    }
+
+    function handleUsernameInput() {
+        const rawValue = $usernameInput.val();
+        const username = rawValue.trim();
+
+        clearTimeout(usernameTimeout);
+
+        if (rawValue !== username) {
+            $usernameInput.val(username);
+        }
+
+        if (!username) {
+            usernameState.value = '';
+            usernameState.status = 'empty';
+            updateUsernameFeedback('');
+            return;
+        }
+
+        if (!USERNAME_REGEX.test(username)) {
+            usernameState.value = username;
+            usernameState.status = 'invalid';
+            updateUsernameFeedback('Username can only contain letters and numbers', 'error');
+            return;
+        }
+
+        if (username.length < USERNAME_MIN_LENGTH) {
+            usernameState.value = username;
+            usernameState.status = 'incomplete';
+            updateUsernameFeedback(`Username must be at least ${USERNAME_MIN_LENGTH} characters`, 'info');
+            return;
+        }
+
+        usernameState.value = username;
+        usernameState.status = 'checking';
+        updateUsernameFeedback('Checking availability...', 'info');
+
+        usernameTimeout = setTimeout(() => {
+            performUsernameAvailabilityCheck(username);
+        }, 400);
+    }
+
+    async function ensureUsernameIsAvailable() {
+        const username = $usernameInput.val().trim();
+        $usernameInput.val(username);
+
+        if (!username) {
+            usernameState.value = '';
+            usernameState.status = 'empty';
+            updateUsernameFeedback('Please enter a username', 'error');
+            showFormError('Please enter a username');
+            $usernameInput.focus();
+            return false;
+        }
+
+        if (!USERNAME_REGEX.test(username)) {
+            usernameState.value = username;
+            usernameState.status = 'invalid';
+            updateUsernameFeedback('Username can only contain letters and numbers', 'error');
+            showFormError('Username can only contain letters and numbers');
+            $usernameInput.focus();
+            return false;
+        }
+
+        if (username.length < USERNAME_MIN_LENGTH) {
+            usernameState.value = username;
+            usernameState.status = 'incomplete';
+            updateUsernameFeedback(`Username must be at least ${USERNAME_MIN_LENGTH} characters`, 'error');
+            showFormError(`Username must be at least ${USERNAME_MIN_LENGTH} characters`);
+            $usernameInput.focus();
+            return false;
+        }
+
+        if (usernameState.value === username && usernameState.status === 'available') {
+            return true;
+        }
+
+        clearTimeout(usernameTimeout);
+
+        try {
+            await performUsernameAvailabilityCheck(username);
+        } catch (error) {
+            // handled in fail callback
+        }
+
+        if (usernameState.value === username && usernameState.status === 'available') {
+            clearFormError();
+            return true;
+        }
+
+        if (usernameState.status === 'taken') {
+            showFormError('Username is already taken. Please choose another.');
+        } else if (usernameState.status === 'error') {
+            showFormError('We could not verify the username. Please try again.');
+        } else if (usernameState.status === 'checking') {
+            showFormError('Please wait until the username check is complete.');
+        }
+
+        $usernameInput.focus();
+        return false;
+    }
+
+    $usernameInput.on('input', handleUsernameInput);
+
+    $usernameInput.on('blur', function() {
+        const username = $usernameInput.val().trim();
+
+        if (!username) {
+            return;
+        }
+
+        if (!USERNAME_REGEX.test(username) || username.length < USERNAME_MIN_LENGTH) {
+            return;
+        }
+
+        if (usernameState.value === username && ['available', 'taken'].includes(usernameState.status)) {
+            return;
+        }
+
+        clearTimeout(usernameTimeout);
+        performUsernameAvailabilityCheck(username);
+    });
 
     // Password requirements regex
     const passwordRequirements = {
@@ -96,59 +307,26 @@ $(document).ready(function() {
     // Confirm password input events
     $confirmPasswordInput.on('input', checkPasswordMatch);
 
-    // // Username availability check
-    // let usernameTimeout;
-    // $('#register-username').on('input', function() {
-    //     const username = $(this).val();
-    //     const $usernameValidation = $('#username-validation');
-
-    //     clearTimeout(usernameTimeout);
-    //     if (username.length >= 3) {
-    //         usernameTimeout = setTimeout(() => {
-    //             $.ajax({
-    //                 url: '/auth/check-username',
-    //                 type: 'POST',
-    //                 contentType: 'application/json',
-    //                 data: JSON.stringify({ username }),
-    //                 success: function(data) {
-    //                     if (data.available) {
-    //                         $usernameValidation
-    //                             .removeClass('hidden text-red-500')
-    //                             .addClass('text-green-600')
-    //                             .text('Username is available');
-    //                     } else {
-    //                         $usernameValidation
-    //                             .removeClass('hidden text-green-600')
-    //                             .addClass('text-red-500')
-    //                             .text('Username is already taken');
-    //                     }
-    //                 }
-    //             });
-    //         }, 500);
-    //     } else {
-    //         $usernameValidation.addClass('hidden');
-    //     }
-    // });
-
     // Form submission
-    $registerForm.on('submit', function(event) {
+    $registerForm.on('submit', async function(event) {
         event.preventDefault();
+
+        clearFormError();
+
+        const usernameIsValid = await ensureUsernameIsAvailable();
+        if (!usernameIsValid) {
+            return;
+        }
 
         // Validate password requirements
         if (!checkPasswordStrength($passwordInput.val())) {
-            $errorMessage
-                .text('Please meet all password requirements')
-                .removeClass('hidden')
-                .addClass('bg-red-100 text-red-700');
+            showFormError('Please meet all password requirements');
             return;
         }
 
         // Validate password match
         if (!checkPasswordMatch()) {
-            $errorMessage
-                .text('Passwords do not match')
-                .removeClass('hidden')
-                .addClass('bg-red-100 text-red-700');
+            showFormError('Passwords do not match');
             return;
         }
 
@@ -156,16 +334,19 @@ $(document).ready(function() {
         $submitButton.prop('disabled', true);
         $buttonText.text('Creating account...');
         $loadingSpinner.removeClass('hidden');
-        $errorMessage.addClass('hidden');
+        clearFormError();
 
         // Gather form data
+        const csrfToken = getCsrfToken();
+
         const formData = {
             first_name: $('#register-first-name').val(),
             last_name: $('#register-last-name').val(),
-            username: $('#register-username').val(),
+            username: $usernameInput.val(),
             email: $('#register-email').val(),
             password: $passwordInput.val(),
-            terms_accepted: $('#terms').is(':checked')
+            terms_accepted: $('#terms').is(':checked'),
+            csrf_token: csrfToken
         };
 
         $.ajax({
@@ -173,6 +354,11 @@ $(document).ready(function() {
             type: 'POST',
             contentType: 'application/json',
             data: JSON.stringify(formData),
+            beforeSend: function(xhr) {
+                if (csrfToken) {
+                    xhr.setRequestHeader('X-CSRF-Token', csrfToken);
+                }
+            },
             success: function(data) {
                 $errorMessage
                 .text('Account created successfully! Redirecting...')
@@ -186,10 +372,7 @@ $(document).ready(function() {
             },
             error: function(xhr) {
                 const errorMsg = xhr.responseJSON?.message || 'An error occurred during registration. Please try again.';
-                $errorMessage
-                    .text(errorMsg)
-                    .removeClass('hidden bg-green-100 text-green-700')
-                    .addClass('bg-red-100 text-red-700');
+                showFormError(errorMsg);
                 
                 // Reset form state
                 $submitButton.prop('disabled', false);
@@ -216,7 +399,7 @@ $(document).ready(function() {
             .removeClass('border-red-500')
             .siblings('.field-error')
             .addClass('hidden');
-        $errorMessage.addClass('hidden');
+        clearFormError();
     });
     
     // Validate email format
@@ -253,21 +436,17 @@ $(document).ready(function() {
         if (event.key === 'Enter') {
             if (!checkPasswordStrength($passwordInput.val()) || !checkPasswordMatch()) {
                 event.preventDefault();
-                $errorMessage
-                    .text('Please fix all validation errors before submitting')
-                    .removeClass('hidden')
-                    .addClass('bg-red-100 text-red-700');
+                showFormError('Please fix all validation errors before submitting');
             }
         }
     });
     
-    // Handle paste events on password fields
+    // Handle paste events on password fields (allow confirm password pasting)
     $('.password-input').on('paste', function(e) {
-        e.preventDefault();
-        $errorMessage
-            .text('Please type your password manually for security')
-            .removeClass('hidden')
-            .addClass('bg-red-100 text-red-700');
+        if (this.id !== 'register-confirm-password') {
+            e.preventDefault();
+            showFormError('Please type your password manually for security');
+        }
     });
     
     // Clean up on page unload

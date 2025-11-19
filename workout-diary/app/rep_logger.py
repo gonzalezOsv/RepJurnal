@@ -1,13 +1,18 @@
 from flask import Blueprint, jsonify, request, current_app
 from flask_login import login_required, current_user
 from .models import db, Workout, Exercise, BodyPart, StandardExercise, CustomExercise
-from .validators import validate_exercise_log, validate_date_string, sanitize_input
-from datetime import date
+from .validators import (
+    validate_exercise_log, validate_cardio_log, validate_date_string, 
+    validate_exercise_name, sanitize_input
+)
+from .rate_limiter import rate_limit, rate_limit_strict, rate_limit_lenient
+from datetime import date, datetime
 from sqlalchemy.orm import joinedload
 
 workout_bp = Blueprint('workout', __name__)
 @workout_bp.route('/api/exercises/<body_part>', methods=['GET'])
 @login_required
+@rate_limit_lenient(max_requests=100, time_window_seconds=60)
 def get_exercises(body_part):
     # Get the body part
     body_part_obj = BodyPart.query.filter_by(body_part_name=body_part).first()
@@ -39,6 +44,7 @@ def get_exercises(body_part):
 
 @workout_bp.route('/api/bodyparts', methods=['GET'])
 @login_required
+@rate_limit_lenient(max_requests=100, time_window_seconds=60)
 def get_body_parts():
     """
     Get list of all available body parts.
@@ -53,24 +59,52 @@ def get_body_parts():
 
 @workout_bp.route('/api/custom-exercise', methods=['POST'])
 @login_required
+@rate_limit_strict(max_requests=20, time_window_seconds=60)
 def add_custom_exercise():
     """
-    Create a new custom exercise for the user.
+    Create a new custom exercise for the user with comprehensive validation.
     """
     current_app.logger.info(f"User {current_user.user_id} creating custom exercise")
     
     try:
         data = request.get_json()
         
-        body_part = BodyPart.query.filter_by(body_part_name=data['bodyPart']).first()
+        # Validate request has required data
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        # Validate exercise name
+        exercise_name = data.get('exerciseName', '').strip()
+        is_valid, error = validate_exercise_name(exercise_name)
+        if not is_valid:
+            current_app.logger.warning(f"Invalid exercise name from user {current_user.user_id}: {error}")
+            return jsonify({'error': error}), 400
+        
+        # Sanitize exercise name
+        exercise_name = sanitize_input(exercise_name, 100, allow_special_chars=True)
+        
+        # Validate body part
+        body_part_name = sanitize_input(data.get('bodyPart', ''), 50)
+        if not body_part_name:
+            return jsonify({'error': 'Body part is required'}), 400
+        
+        body_part = BodyPart.query.filter_by(body_part_name=body_part_name).first()
         if not body_part:
-            current_app.logger.warning(f"Invalid body part '{data['bodyPart']}' from user {current_user.user_id}")
+            current_app.logger.warning(f"Invalid body part '{body_part_name}' from user {current_user.user_id}")
             return jsonify({'error': 'Invalid body part'}), 400
+        
+        # Check for duplicate exercise name
+        existing = CustomExercise.query.filter_by(
+            user_id=current_user.user_id,
+            exercise_name=exercise_name
+        ).first()
+        if existing:
+            return jsonify({'error': 'You already have a custom exercise with this name'}), 400
             
         new_exercise = CustomExercise(
             user_id=current_user.user_id,
             body_part_id=body_part.body_part_id,
-            exercise_name=sanitize_input(data['exerciseName'], 100)
+            exercise_name=exercise_name
         )
         
         db.session.add(new_exercise)
@@ -82,6 +116,8 @@ def add_custom_exercise():
         
         return jsonify({'customExerciseId': new_exercise.custom_exercise_id}), 201
         
+    except KeyError as e:
+        return jsonify({'error': f'Missing required field: {str(e)}'}), 400
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Error creating custom exercise: {str(e)}", exc_info=True)
@@ -89,11 +125,11 @@ def add_custom_exercise():
 
 @workout_bp.route('/api/exercise_log', methods=['POST'])
 @login_required
+@rate_limit(max_requests=50, time_window_seconds=60)
 def add_exercise():
     """
     Log an exercise with comprehensive input validation.
     """
-    from datetime import datetime
     
     try:
         data = request.get_json()
@@ -119,6 +155,9 @@ def add_exercise():
         
         # Determine exercise type
         exercise_type = data.get('exercise_type', 'strength')
+        if exercise_type not in ['strength', 'cardio']:
+            return jsonify({'error': 'Invalid exercise type'}), 400
+        
         is_cardio = exercise_type == 'cardio' or body_part_name == 'Cardio'
         
         # Validate exercise data based on type
@@ -127,9 +166,20 @@ def add_exercise():
             duration_minutes = data.get('duration_minutes')
             distance_miles = data.get('distance_miles')
             distance_km = data.get('distance_km')
+            intensity = data.get('intensity')
+            calories = data.get('calories_burned')
             
-            if not duration_minutes and not distance_miles and not distance_km:
-                return jsonify({'error': 'Please enter at least duration or distance'}), 400
+            # Validate cardio data
+            is_valid, errors = validate_cardio_log(
+                duration=duration_minutes,
+                distance=distance_miles or distance_km,
+                distance_unit='miles' if distance_miles else 'km',
+                intensity=intensity,
+                calories=calories
+            )
+            if not is_valid:
+                field, message = next(iter(errors.items()))
+                return jsonify({'error': message}), 400
             
             # Set defaults for cardio
             weight = 0
@@ -213,6 +263,7 @@ def add_exercise():
 
 @workout_bp.route('/api/logged-sets', methods=['GET'])
 @login_required
+@rate_limit_lenient(max_requests=200, time_window_seconds=60)
 def get_logged_sets():
     from datetime import datetime
     from flask import request, jsonify
@@ -262,11 +313,49 @@ def get_logged_sets():
     return jsonify({"logged_sets": logged_sets})
 
 
+@workout_bp.route('/api/logged-sets/bulk-delete', methods=['DELETE'])
+@login_required
+@rate_limit_strict(max_requests=10, time_window_seconds=60)
+def bulk_delete_logged_sets():
+    try:
+        data = request.get_json() or {}
+        workout_date_str = data.get('date')
 
+        if not workout_date_str:
+            return jsonify({'error': 'Date is required'}), 400
+
+        is_valid, error = validate_date_string(workout_date_str)
+        if not is_valid:
+            return jsonify({'error': error}), 400
+
+        selected_date = datetime.strptime(workout_date_str, '%Y-%m-%d').date()
+
+        workouts = Workout.query.filter_by(user_id=current_user.user_id, date=selected_date).all()
+        if not workouts:
+            return jsonify({'success': True, 'deleted_sets': 0}), 200
+
+        workout_ids = [workout.workout_id for workout in workouts]
+
+        deleted_sets = Exercise.query.filter(Exercise.workout_id.in_(workout_ids)).delete(synchronize_session=False)
+        Workout.query.filter(Workout.workout_id.in_(workout_ids)).delete(synchronize_session=False)
+
+        db.session.commit()
+
+        current_app.logger.info(
+            f"User {current_user.user_id} cleared {deleted_sets} logged sets for {selected_date.isoformat()}"
+        )
+
+        return jsonify({'success': True, 'deleted_sets': deleted_sets}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error bulk deleting logged sets: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Failed to delete workouts'}), 500
 
 
 @workout_bp.route('/api/logged-sets/<int:lift_id>', methods=['DELETE'])
 @login_required
+@rate_limit_strict(max_requests=30, time_window_seconds=60)
 def delete_logged_set(lift_id):
     from flask import jsonify
 
@@ -286,6 +375,7 @@ def delete_logged_set(lift_id):
 
 @workout_bp.route('/api/logged-sets/<int:lift_id>', methods=['PUT'])
 @login_required
+@rate_limit(max_requests=40, time_window_seconds=60)
 def update_logged_set(lift_id):
     """
     Update a logged exercise set. Updates all sets in the same variation (same weight/reps/unit).

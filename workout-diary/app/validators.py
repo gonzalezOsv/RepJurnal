@@ -370,6 +370,153 @@ def validate_registration_data(username: str, email: str, password: str, first_n
     return (len(errors) == 0, errors)
 
 
+def validate_exercise_name(exercise_name: str) -> Tuple[bool, str]:
+    """
+    Validate exercise name.
+    
+    Requirements:
+    - 2-100 characters
+    - Only letters, numbers, spaces, hyphens, apostrophes, parentheses
+    - No SQL injection attempts
+    - No XSS attempts
+    
+    Returns:
+        (bool, str): (is_valid, error_message)
+    """
+    if not exercise_name:
+        return False, "Exercise name is required"
+    
+    exercise_name = exercise_name.strip()
+    
+    if len(exercise_name) < 2:
+        return False, "Exercise name must be at least 2 characters"
+    
+    if len(exercise_name) > 100:
+        return False, "Exercise name must not exceed 100 characters"
+    
+    # Allow letters, numbers, spaces, hyphens, apostrophes, parentheses, forward slash, ampersand
+    # This allows names like: "Barbell Bench Press", "Smith Machine Squat", "Push-Ups", "90° Leg Press"
+    if not re.match(r"^[a-zA-Z0-9\s\-'()/&°]+$", exercise_name):
+        return False, "Exercise name contains invalid characters"
+    
+    # Check for SQL injection attempts
+    sql_patterns = [
+        r'(\bOR\b|\bAND\b).*=.*',  # OR 1=1, AND 1=1
+        r'(--|#|/\*|\*/)',  # SQL comments
+        r'(\bDROP\b|\bDELETE\b|\bUPDATE\b|\bINSERT\b|\bSELECT\b)',  # SQL keywords
+        r'(;|\bUNION\b)',  # SQL injection patterns
+    ]
+    for pattern in sql_patterns:
+        if re.search(pattern, exercise_name, re.IGNORECASE):
+            return False, "Exercise name contains invalid content"
+    
+    # Check for XSS attempts
+    xss_patterns = [
+        r'<script',
+        r'javascript:',
+        r'on\w+\s*=',  # onclick=, onerror=, etc.
+        r'<iframe',
+        r'<embed',
+        r'<object',
+    ]
+    for pattern in xss_patterns:
+        if re.search(pattern, exercise_name, re.IGNORECASE):
+            return False, "Exercise name contains invalid content"
+    
+    return True, ""
+
+
+def validate_duration(duration_minutes: float) -> Tuple[bool, str]:
+    """
+    Validate cardio duration in minutes.
+    
+    Returns:
+        (bool, str): (is_valid, error_message)
+    """
+    if duration_minutes is None:
+        return True, ""  # Optional field
+    
+    try:
+        duration_minutes = float(duration_minutes)
+    except (ValueError, TypeError):
+        return False, "Duration must be a valid number"
+    
+    if duration_minutes < 0:
+        return False, "Duration cannot be negative"
+    
+    if duration_minutes > 1440:  # 24 hours
+        return False, "Duration is too large (maximum 24 hours)"
+    
+    return True, ""
+
+
+def validate_distance(distance: float, unit: str = 'miles') -> Tuple[bool, str]:
+    """
+    Validate cardio distance.
+    
+    Returns:
+        (bool, str): (is_valid, error_message)
+    """
+    if distance is None:
+        return True, ""  # Optional field
+    
+    try:
+        distance = float(distance)
+    except (ValueError, TypeError):
+        return False, "Distance must be a valid number"
+    
+    if distance < 0:
+        return False, "Distance cannot be negative"
+    
+    # Reasonable maximums
+    max_distance = 500 if unit == 'miles' else 1000  # 500 miles or 1000 km
+    if distance > max_distance:
+        return False, f"Distance is too large (maximum {max_distance} {unit})"
+    
+    return True, ""
+
+
+def validate_calories(calories: int) -> Tuple[bool, str]:
+    """
+    Validate calories burned.
+    
+    Returns:
+        (bool, str): (is_valid, error_message)
+    """
+    if calories is None:
+        return True, ""  # Optional field
+    
+    try:
+        calories = int(calories)
+    except (ValueError, TypeError):
+        return False, "Calories must be a whole number"
+    
+    if calories < 0:
+        return False, "Calories cannot be negative"
+    
+    if calories > 10000:  # Reasonable maximum
+        return False, "Calories value is too large (maximum 10,000)"
+    
+    return True, ""
+
+
+def validate_intensity(intensity: str) -> Tuple[bool, str]:
+    """
+    Validate cardio intensity level.
+    
+    Returns:
+        (bool, str): (is_valid, error_message)
+    """
+    if not intensity:
+        return True, ""  # Optional field
+    
+    valid_intensities = ['Low', 'Moderate', 'High', 'Very High']
+    if intensity not in valid_intensities:
+        return False, f"Intensity must be one of: {', '.join(valid_intensities)}"
+    
+    return True, ""
+
+
 def validate_exercise_log(weight: float, reps: int, sets: int, allow_bodyweight: bool = True) -> Tuple[bool, dict]:
     """
     Validate exercise logging data.
@@ -399,6 +546,48 @@ def validate_exercise_log(weight: float, reps: int, sets: int, allow_bodyweight:
     is_valid, error = validate_sets(sets)
     if not is_valid:
         errors['sets'] = error
+    
+    return (len(errors) == 0, errors)
+
+
+def validate_cardio_log(duration: float = None, distance: float = None, distance_unit: str = 'miles', 
+                        intensity: str = None, calories: int = None) -> Tuple[bool, dict]:
+    """
+    Validate cardio exercise logging data.
+    
+    Returns:
+        (bool, dict): (is_valid, error_dict)
+    """
+    errors = {}
+    
+    # At least one of duration or distance must be provided
+    if not duration and not distance:
+        errors['general'] = "Please provide at least duration or distance"
+        return False, errors
+    
+    # Validate duration
+    if duration is not None:
+        is_valid, error = validate_duration(duration)
+        if not is_valid:
+            errors['duration'] = error
+    
+    # Validate distance
+    if distance is not None:
+        is_valid, error = validate_distance(distance, distance_unit)
+        if not is_valid:
+            errors['distance'] = error
+    
+    # Validate intensity
+    if intensity is not None:
+        is_valid, error = validate_intensity(intensity)
+        if not is_valid:
+            errors['intensity'] = error
+    
+    # Validate calories
+    if calories is not None:
+        is_valid, error = validate_calories(calories)
+        if not is_valid:
+            errors['calories'] = error
     
     return (len(errors) == 0, errors)
 

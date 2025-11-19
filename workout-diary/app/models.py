@@ -31,6 +31,14 @@ class User(db.Model, UserMixin):
     dietary_preferences = db.Column(db.String(255))  # E.g., "Vegan", "Low Carb", etc.
     preferred_workout_time = db.Column(db.Time)  # Preferred time for workouts (e.g., '06:00:00')
     
+    # Privacy & Social Fields
+    profile_visibility = db.Column(db.Enum('public', 'friends_only', 'private', name='profile_visibility_enum'), default='public')
+    show_stats_to_friends = db.Column(db.Boolean, default=True)
+    show_workouts_to_friends = db.Column(db.Boolean, default=True)
+    show_routines_to_public = db.Column(db.Boolean, default=True)
+    bio = db.Column(db.Text)
+    profile_picture_url = db.Column(db.String(255))
+    
     def get_id(self):
         # Return the user_id for Flask-Login
         return str(self.user_id)
@@ -391,11 +399,14 @@ class WorkoutRoutine(db.Model):
     __tablename__ = 'WorkoutRoutines'
     routine_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Integer, db.ForeignKey('Users.user_id'), nullable=False)
-    routine_name = db.Column(db.String(100), nullable=False)
+    routine_name = db.Column(db.String(100), nullable=False)  # Keep as routine_name to match database
     description = db.Column(db.Text)
     share_token = db.Column(db.String(32), unique=True, nullable=True, index=True)  # For QR code sharing
     is_imported = db.Column(db.Boolean, default=False, nullable=False)  # Track if routine was imported
     imported_from_user_id = db.Column(db.Integer, db.ForeignKey('Users.user_id'), nullable=True)  # Original creator
+    visibility = db.Column(db.Enum('public', 'friends_only', 'private', name='routine_visibility_enum'), default='private')
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False, index=True)  # Soft delete for imported routines
+    deleted_at = db.Column(db.TIMESTAMP, nullable=True)  # When it was soft-deleted
     created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
     updated_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
     
@@ -430,4 +441,164 @@ class RoutineExercise(db.Model):
     
     # Relationship to BodyPart
     body_part = db.relationship('BodyPart', backref='routine_exercises', lazy=True)
+
+
+# Routine Session model - Track when users start/finish routines for analytics
+class RoutineSession(db.Model):
+    __tablename__ = 'RoutineSessions'
+    session_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('Users.user_id', ondelete='CASCADE'), nullable=False)
+    routine_id = db.Column(db.Integer, db.ForeignKey('WorkoutRoutines.routine_id', ondelete='CASCADE'), nullable=False)
     
+    # Session timing
+    started_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp(), nullable=False)
+    completed_at = db.Column(db.TIMESTAMP, nullable=True)  # NULL if not finished
+    
+    # Completion tracking
+    total_exercises = db.Column(db.Integer, nullable=False)  # Total exercises in routine
+    completed_exercises = db.Column(db.Integer, default=0)  # Exercises user completed
+    is_fully_completed = db.Column(db.Boolean, default=False)  # True if all exercises done
+    completion_percentage = db.Column(db.Float, default=0.0)  # Percentage completed
+    
+    # Session metadata
+    workout_date = db.Column(db.Date, nullable=False)  # Date of the workout
+    duration_minutes = db.Column(db.Float, nullable=True)  # Time from start to finish
+    
+    # Relationships
+    user = db.relationship('User', backref='routine_sessions', lazy=True)
+    routine = db.relationship('WorkoutRoutine', backref='sessions', lazy=True)
+
+
+# RoutineStats model (public stats)
+class RoutineStats(db.Model):
+    __tablename__ = 'RoutineStats'
+    stat_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    routine_id = db.Column(db.Integer, db.ForeignKey('WorkoutRoutines.routine_id', ondelete='CASCADE'), nullable=False, unique=True)
+
+    times_copied = db.Column(db.Integer, nullable=False, default=0)
+    total_completions_all_users = db.Column(db.Integer, nullable=False, default=0)
+    active_users_count = db.Column(db.Integer, nullable=False, default=0)
+    popularity_score = db.Column(db.Float, nullable=False, default=0.0)
+    total_volume_all_users = db.Column(db.Float, nullable=False, default=0.0)
+    average_completion_time = db.Column(db.Float, nullable=True)
+
+    last_used_by_anyone = db.Column(db.TIMESTAMP, nullable=True)
+    created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
+    updated_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+
+    routine = db.relationship('WorkoutRoutine', backref=db.backref('stats', uselist=False, lazy=True))
+
+
+# UserRoutineStats model (personal stats per user per routine)
+class UserRoutineStats(db.Model):
+    __tablename__ = 'UserRoutineStats'
+    user_routine_stat_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('Users.user_id', ondelete='CASCADE'), nullable=False)
+    routine_id = db.Column(db.Integer, db.ForeignKey('WorkoutRoutines.routine_id', ondelete='CASCADE'), nullable=False)
+
+    times_completed = db.Column(db.Integer, nullable=False, default=0)
+    last_used = db.Column(db.TIMESTAMP, nullable=True)
+    first_used = db.Column(db.TIMESTAMP, nullable=True)
+    total_volume_lifted = db.Column(db.Float, nullable=False, default=0.0)
+    total_exercises_completed = db.Column(db.Integer, nullable=False, default=0)
+    average_duration = db.Column(db.Float, nullable=True)
+    full_completions = db.Column(db.Integer, nullable=False, default=0)
+    partial_completions = db.Column(db.Integer, nullable=False, default=0)
+    best_completion_time = db.Column(db.Float, nullable=True)
+    personal_record_volume = db.Column(db.Float, nullable=True)
+    current_streak = db.Column(db.Integer, nullable=False, default=0)
+    longest_streak = db.Column(db.Integer, nullable=False, default=0)
+
+    created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
+    updated_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+
+    user = db.relationship('User', backref='routine_stats', lazy=True)
+    routine = db.relationship('WorkoutRoutine', backref='user_stats', lazy=True)
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'routine_id', name='unique_user_routine_stats'),
+    )
+
+
+# Friend Request model
+class FriendRequest(db.Model):
+    __tablename__ = 'FriendRequests'
+    request_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    sender_id = db.Column(db.Integer, db.ForeignKey('Users.user_id', ondelete='CASCADE'), nullable=False)
+    receiver_id = db.Column(db.Integer, db.ForeignKey('Users.user_id', ondelete='CASCADE'), nullable=False)
+    status = db.Column(db.Enum('pending', 'accepted', 'declined', name='friend_request_status_enum'), default='pending')
+    message = db.Column(db.Text)
+    created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
+    updated_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+    
+    # Relationships
+    sender = db.relationship('User', foreign_keys=[sender_id], backref=db.backref('sent_friend_requests', lazy=True))
+    receiver = db.relationship('User', foreign_keys=[receiver_id], backref=db.backref('received_friend_requests', lazy=True))
+    
+    def to_dict(self):
+        return {
+            'request_id': self.request_id,
+            'sender_id': self.sender_id,
+            'sender_username': self.sender.username,
+            'sender_first_name': self.sender.first_name,
+            'sender_last_name': self.sender.last_name,
+            'receiver_id': self.receiver_id,
+            'receiver_username': self.receiver.username,
+            'status': self.status,
+            'message': self.message,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+
+# Friend model
+class Friend(db.Model):
+    __tablename__ = 'Friends'
+    friendship_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('Users.user_id', ondelete='CASCADE'), nullable=False)
+    friend_id = db.Column(db.Integer, db.ForeignKey('Users.user_id', ondelete='CASCADE'), nullable=False)
+    created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
+    
+    # Relationships
+    user = db.relationship('User', foreign_keys=[user_id], backref=db.backref('friendships', lazy=True))
+    friend = db.relationship('User', foreign_keys=[friend_id])
+    
+    def to_dict(self):
+        return {
+            'friendship_id': self.friendship_id,
+            'user_id': self.user_id,
+            'friend_id': self.friend_id,
+            'friend_username': self.friend.username,
+            'friend_first_name': self.friend.first_name,
+            'friend_last_name': self.friend.last_name,
+            'friend_profile_visibility': self.friend.profile_visibility,
+            'friend_bio': self.friend.bio,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+
+# Tracked Exercise model - User's custom tracked exercises for Main Lifts tab
+class TrackedExercise(db.Model):
+    __tablename__ = 'TrackedExercises'
+    tracked_exercise_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('Users.user_id', ondelete='CASCADE'), nullable=False)
+    exercise_name = db.Column(db.String(100), nullable=False)
+    display_order = db.Column(db.Integer, default=0)  # For ordering on the dashboard
+    created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
+    
+    # Relationships
+    user = db.relationship('User', backref=db.backref('tracked_exercises', lazy=True))
+    
+    # Unique constraint: each user can only track an exercise once
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'exercise_name', name='unique_user_exercise'),
+    )
+    
+    def to_dict(self):
+        return {
+            'tracked_exercise_id': self.tracked_exercise_id,
+            'user_id': self.user_id,
+            'exercise_name': self.exercise_name,
+            'display_order': self.display_order,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+     

@@ -1,0 +1,312 @@
+{% extends "layout_user.html" %}
+
+{% block title %}Friends - FitJourney{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-indigo-900">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+        <!-- Page Header -->
+        <div class="mb-4 sm:mb-6">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+                <div class="text-center sm:text-left">
+                    <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-800 dark:text-slate-100 mb-1">Fitness Community</h1>
+                    <p class="text-sm sm:text-base text-slate-600 dark:text-slate-300">Connect, inspire, and grow together</p>
+                </div>
+                
+                <!-- Friend Request Notification Badge -->
+                <div id="requestBadge" class="hidden">
+                    <span class="inline-flex items-center px-3 py-2 bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 rounded-full font-medium text-sm shadow-sm">
+                        <span id="requestCount">0</span> New Request<span id="requestPlural">s</span>
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs - Mobile First -->
+        <div class="mb-4 sm:mb-6">
+            <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700 p-1 sm:p-2">
+                <div class="grid grid-cols-3 sm:flex gap-1 sm:gap-2">
+                    <!-- Friends List Tab -->
+                    <button id="friendsListTab" class="friend-tab group flex items-center justify-center gap-2 px-3 py-3 sm:px-4 sm:py-3 rounded-xl font-semibold text-xs sm:text-sm transition-all duration-200 bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md">
+                        <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                        </svg>
+                        <span class="hidden sm:inline">My Friends</span>
+                        <span class="sm:hidden">Friends</span>
+                        <span id="friendsCount" class="hidden sm:inline px-2 py-0.5 bg-white/20 rounded-full text-xs font-bold">0</span>
+                    </button>
+                    
+                    <!-- Find Friends Tab -->
+                    <button id="findFriendsTab" class="friend-tab group flex items-center justify-center gap-2 px-3 py-3 sm:px-4 sm:py-3 rounded-xl font-semibold text-xs sm:text-sm transition-all duration-200 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">
+                        <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        <span class="hidden sm:inline">Find Friends</span>
+                        <span class="sm:hidden">Find</span>
+                    </button>
+                    
+                    <!-- Friend Requests Tab -->
+                    <button id="requestsTab" class="friend-tab group flex items-center justify-center gap-2 px-3 py-3 sm:px-4 sm:py-3 rounded-xl font-semibold text-xs sm:text-sm transition-all duration-200 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 relative">
+                        <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                        </svg>
+                        <span class="hidden sm:inline">Requests</span>
+                        <span class="sm:hidden">Req</span>
+                        <span id="requestTabBadge" class="hidden absolute -top-1 -right-1 bg-rose-500 text-white text-xs rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center font-bold">0</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Privacy Settings Info Banner -->
+        {% if not user_settings.show_stats_to_friends or not user_settings.show_workouts_to_friends or not user_settings.show_routines_to_public %}
+        <div id="privacyInfoBanner" class="mb-4 sm:mb-6 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-2 border-amber-200 dark:border-amber-700 rounded-2xl p-4 sm:p-5 shadow-md">
+            <div class="flex items-start gap-3">
+                <svg class="w-5 h-5 sm:w-6 sm:h-6 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <div class="flex-1">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="text-sm sm:text-base font-bold text-amber-900 dark:text-amber-300">Your Privacy Settings</h4>
+                        <button id="dismissPrivacyBanner" class="text-amber-700 dark:text-amber-400 hover:text-amber-900 dark:hover:text-amber-200 transition-colors">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <p class="text-xs sm:text-sm text-amber-800 dark:text-amber-400 mb-3">
+                        You've restricted what friends can see about you:
+                    </p>
+                    <div class="space-y-2 text-xs sm:text-sm">
+                        {% if not user_settings.show_stats_to_friends %}
+                        <div class="flex items-center gap-2 text-amber-800 dark:text-amber-300">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                            <span>Friends <strong>cannot</strong> see your workout statistics</span>
+                        </div>
+                        {% endif %}
+                        {% if not user_settings.show_workouts_to_friends %}
+                        <div class="flex items-center gap-2 text-amber-800 dark:text-amber-300">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                            <span>Friends <strong>cannot</strong> see your recent workouts</span>
+                        </div>
+                        {% endif %}
+                        {% if not user_settings.show_routines_to_public %}
+                        <div class="flex items-center gap-2 text-amber-800 dark:text-amber-300">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                            <span>You <strong>cannot</strong> create public routines</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="mt-3 pt-3 border-t border-amber-200 dark:border-amber-700">
+                        <a href="/account" class="text-xs sm:text-sm font-semibold text-amber-900 dark:text-amber-200 hover:text-amber-700 dark:hover:text-amber-100 underline flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                            Change Privacy Settings
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Tab Content Containers -->
+        <div id="tabContent">
+            
+            <!-- Friends List Section -->
+            <div id="friendsListSection" class="tab-content">
+                <div class="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                    <div class="bg-gradient-to-r from-blue-500 to-indigo-600 px-4 sm:px-6 py-4">
+                        <h2 class="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                            </svg>
+                            My Fitness Circle
+                        </h2>
+                    </div>
+                    
+                    <div class="p-4 sm:p-6">
+                        <div id="friendsListContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                            <!-- Friends cards will be dynamically inserted here -->
+                            <div class="col-span-full text-center py-8 sm:py-12">
+                                <div class="animate-spin inline-block w-6 h-6 sm:w-8 sm:h-8 border-2 border-current border-t-transparent rounded-full text-blue-500" role="status">
+                                    <span class="sr-only">Loading...</span>
+                                </div>
+                                <p class="mt-3 text-sm sm:text-base text-slate-500 dark:text-slate-400">Loading your fitness circle...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Find Friends Section -->
+            <div id="findFriendsSection" class="tab-content hidden">
+                <div class="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                    <div class="bg-gradient-to-r from-emerald-500 to-teal-600 px-4 sm:px-6 py-4">
+                        <h2 class="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                            Discover New Connections
+                        </h2>
+                    </div>
+                    
+                    <div class="p-4 sm:p-6">
+                        <!-- Search Bar -->
+                        <div class="mb-6">
+                            <div class="relative">
+                                <input type="text" id="userSearchInput" placeholder="Search by username or name..." 
+                                       class="w-full pl-10 sm:pl-12 pr-4 py-3 sm:py-4 text-sm sm:text-base border-2 border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 dark:bg-slate-700 dark:text-white transition-all bg-slate-50 dark:bg-slate-800">
+                                <svg class="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 sm:w-6 sm:h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                                </svg>
+                            </div>
+                        </div>
+                        
+                        <div id="searchResultsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                            <!-- Search results will be dynamically inserted here -->
+                            <div class="col-span-full text-center py-8 sm:py-12">
+                                <svg class="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-slate-300 dark:text-slate-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                                </svg>
+                                <p class="text-slate-500 dark:text-slate-400 text-sm sm:text-base">Start typing to discover new fitness friends</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Friend Requests Section -->
+            <div id="requestsSection" class="tab-content hidden">
+                <div class="space-y-4 sm:space-y-6">
+                    <!-- Incoming Requests -->
+                    <div class="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                        <div class="bg-gradient-to-r from-amber-500 to-orange-600 px-4 sm:px-6 py-4">
+                            <h2 class="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                                </svg>
+                                Incoming Requests
+                            </h2>
+                        </div>
+                        <div class="p-4 sm:p-6">
+                            <div id="incomingRequestsContainer" class="space-y-3 sm:space-y-4">
+                                <!-- Incoming requests will be dynamically inserted here -->
+                                <div class="text-center py-6 sm:py-8">
+                                    <p class="text-slate-500 dark:text-slate-400 text-sm sm:text-base">Loading requests...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Outgoing Requests -->
+                    <div class="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                        <div class="bg-gradient-to-r from-slate-500 to-slate-600 px-4 sm:px-6 py-4">
+                            <h2 class="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                Sent Requests
+                            </h2>
+                        </div>
+                        <div class="p-4 sm:p-6">
+                            <div id="outgoingRequestsContainer" class="space-y-3 sm:space-y-4">
+                                <!-- Outgoing requests will be dynamically inserted here -->
+                                <div class="text-center py-6 sm:py-8">
+                                    <p class="text-slate-500 dark:text-slate-400 text-sm sm:text-base">Loading requests...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+</div>
+
+<!-- Friend Profile Modal -->
+<div id="friendProfileModal" class="hidden fixed inset-0 bg-slate-900/60 dark:bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+    <!-- Modal content will be dynamically inserted here -->
+</div>
+
+<!-- Friend Actions Modal -->
+<div id="friendActionsModal" class="hidden fixed inset-0 bg-slate-900/60 dark:bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm rounded-2xl sm:rounded-3xl max-w-md w-full mx-4 shadow-2xl border border-slate-200 dark:border-slate-700 transform transition-all">
+        <!-- Modal Header -->
+        <div class="bg-gradient-to-r from-slate-500 to-slate-600 dark:from-slate-600 dark:to-slate-700 px-4 sm:px-6 py-4 sm:py-5 relative">
+            <div class="flex items-center gap-3">
+                <div class="bg-white/20 backdrop-blur-sm p-2 rounded-lg">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/>
+                    </svg>
+                </div>
+                <h3 class="text-lg sm:text-xl font-bold text-white">Friend Options</h3>
+            </div>
+        </div>
+        
+        <!-- Modal Content -->
+        <div class="p-4 sm:p-6">
+            <div class="text-center mb-6">
+                <h4 class="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mb-2">What would you like to do?</h4>
+                <p class="text-sm sm:text-base text-slate-600 dark:text-slate-400">
+                    Choose an action for <span id="friendActionsUsername" class="font-semibold text-slate-900 dark:text-white">@username</span>
+                </p>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="space-y-3">
+                <button id="confirmRemoveFriend" class="w-full px-4 sm:px-6 py-3 bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white font-semibold rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                    Remove Friend
+                </button>
+                <button id="confirmBlockUser" class="w-full px-4 sm:px-6 py-3 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white font-semibold rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+                    </svg>
+                    Block User
+                </button>
+                <button id="cancelFriendActions" class="w-full px-4 sm:px-6 py-3 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 font-semibold rounded-xl transition-all">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Include Template Components -->
+{% include 'components/friend_card.html' %}
+{% include 'components/user_search_card.html' %}
+{% include 'components/friend_request_card.html' %}
+{% endblock %}
+
+{% block extra_js %}
+<!-- User Privacy Settings (for JavaScript enforcement) -->
+<script>
+    // Make user privacy settings available to JavaScript
+    window.USER_PRIVACY_SETTINGS = {
+        showRoutinesToPublic: {{ user_settings.show_routines_to_public|lower }},
+        profileVisibility: '{{ user_settings.profile_visibility }}',
+        showStatsToFriends: {{ user_settings.show_stats_to_friends|lower }},
+        showWorkoutsToFriends: {{ user_settings.show_workouts_to_friends|lower }}
+    };
+</script>
+
+<!-- Load shared utility modules -->
+<script src="{{ url_for('static', filename='modules/utils.js') }}"></script>
+<script src="{{ url_for('static', filename='modules/uiHelpers.js') }}"></script>
+<script src="{{ url_for('static', filename='modules/friendsTemplateHelpers.js') }}"></script>
+
+<!-- Load page-specific script -->
+<script src="{{ url_for('static', filename='friends.js') }}"></script>
+{% endblock %}
+

@@ -1,0 +1,143 @@
+<!-- 
+  Component: Manage Tracked Lifts Modal
+  Description: Dropdown-based interface for managing tracked exercises
+  Features: Add via dropdown, delete with confirmation, numbered list display
+-->
+
+<!-- Manage Tracked Lifts Modal -->
+<div id="manageTrackedModal" class="hidden fixed inset-0 bg-black bg-opacity-60 dark:bg-black dark:bg-opacity-70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="bg-white dark:bg-gray-800 rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-hidden shadow-2xl transform transition-all animate__animated animate__fadeInUp">
+    <!-- Modal Header -->
+    <div class="sticky top-0 bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-500 dark:to-indigo-500 px-6 py-5 flex justify-between items-center z-10">
+      <div class="flex items-center gap-3">
+        <div class="bg-white bg-opacity-20 p-2 rounded-lg">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+          </svg>
+        </div>
+        <div>
+          <h3 class="text-2xl font-bold text-white">Manage Tracked Lifts</h3>
+          <p class="text-blue-100 text-sm">Add, remove, and reorder your tracked exercises</p>
+        </div>
+      </div>
+      <button id="closeTrackedModal" class="text-white hover:bg-white hover:bg-opacity-20 p-2 rounded-full transition-all">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    
+    <!-- Modal Content -->
+    <div class="p-6 bg-white dark:bg-gray-800">
+      
+      <!-- Add New Exercise Section -->
+      <div class="mb-6">
+        <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-3">
+          <div class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            Add Exercise to Track
+          </div>
+        </label>
+        <select id="addExerciseDropdown" class="w-full p-4 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 transition-all text-base font-medium">
+          <option value="">Select an exercise to add...</option>
+          <optgroup label="Loading..."></optgroup>
+        </select>
+      </div>
+
+      <!-- Currently Tracked Exercises List -->
+      <div class="mb-4">
+        <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-3">
+          <div class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            Your Tracked Lifts (<span id="trackedCountLabel">0</span>)
+          </div>
+        </label>
+        
+        <!-- Tracked List Container -->
+        <div id="trackedExercisesList" class="space-y-2 max-h-[40vh] overflow-y-auto">
+          <!-- Empty state -->
+          <div id="emptyTrackedState" class="text-center py-8 bg-gray-50 dark:bg-gray-700 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600">
+            <svg class="w-12 h-12 mx-auto text-gray-400 dark:text-gray-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+            </svg>
+            <p class="text-gray-500 dark:text-gray-400 text-sm">No exercises tracked yet</p>
+            <p class="text-gray-400 dark:text-gray-500 text-xs mt-1">Select from the dropdown above to start</p>
+          </div>
+          <!-- Dynamic tracked exercises will be inserted here -->
+        </div>
+      </div>
+
+      <!-- Helpful Tips -->
+      <div class="bg-blue-50 dark:bg-blue-900/30 rounded-xl p-4 border border-blue-200 dark:border-blue-700">
+        <div class="flex items-start gap-3">
+          <svg class="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <div class="text-sm text-blue-900 dark:text-blue-100">
+            <p class="font-semibold mb-1">💡 Pro Tips:</p>
+            <ul class="text-xs space-y-1 text-blue-800 dark:text-blue-200">
+              <li>• Track 3-6 exercises for an organized dashboard</li>
+              <li>• Focus on compound movements (Bench, Squat, Deadlift)</li>
+              <li>• Drag to reorder (coming soon)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Action Buttons -->
+    <div class="sticky bottom-0 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-6 py-4">
+      <button id="closeTrackedModalBtn" class="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-500 dark:to-indigo-500 hover:from-blue-700 hover:to-indigo-700 dark:hover:from-blue-600 dark:hover:to-indigo-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+        </svg>
+        Done
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteConfirmModal" class="hidden fixed inset-0 bg-black bg-opacity-60 dark:bg-black dark:bg-opacity-70 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+  <div class="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full shadow-2xl transform transition-all animate__animated animate__fadeInUp relative z-[61]">
+    <!-- Modal Header -->
+    <div class="px-6 py-5 border-b border-gray-200 dark:border-gray-700">
+      <div class="flex items-center gap-3">
+        <div class="bg-red-100 dark:bg-red-900/30 p-2 rounded-lg">
+          <svg class="w-6 h-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+          </svg>
+        </div>
+        <h3 class="text-xl font-bold text-gray-900 dark:text-white">Remove Tracked Exercise?</h3>
+      </div>
+    </div>
+    
+    <!-- Modal Content -->
+    <div class="px-6 py-5">
+      <p class="text-gray-700 dark:text-gray-300 mb-4">
+        Are you sure you want to remove <strong class="text-gray-900 dark:text-white" id="deleteExerciseName">this exercise</strong> from your tracked lifts?
+      </p>
+      <p class="text-sm text-gray-500 dark:text-gray-400">
+        This will remove it from your Main Lifts dashboard, but your workout history will remain unchanged.
+      </p>
+    </div>
+    
+    <!-- Action Buttons -->
+    <div class="px-6 py-4 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex gap-3">
+      <button id="cancelDeleteBtn" class="flex-1 px-4 py-2.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold rounded-xl transition-all">
+        Cancel
+      </button>
+      <button id="confirmDeleteBtn" class="flex-1 px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+        </svg>
+        Remove
+      </button>
+    </div>
+  </div>
+</div>
+

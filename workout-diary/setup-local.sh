@@ -78,3 +78,9 @@ echo "   Restart app:   docker-compose restart web"
 echo "   Reset DB:      docker-compose down -v && ./setup-local.sh"
 echo ""
 
+
+
+
+
+
+

@@ -1,0 +1,60 @@
+<!-- Friend Card Template Component -->
+<!-- This template is used to render friend cards dynamically -->
+<!-- Usage: Clone this template in JavaScript and populate with data -->
+
+<template id="friend-card-template">
+    <div class="friend-card bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600 transition-all duration-300 shadow-md hover:shadow-xl transform hover:scale-105">
+        <div class="flex items-start justify-between mb-4">
+            <div class="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                <!-- Avatar with online indicator -->
+                <div class="relative">
+                    <div class="friend-avatar w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg sm:text-xl flex-shrink-0 shadow-lg">
+                        <!-- Initials will be inserted here -->
+                    </div>
+                    <!-- Online indicator (placeholder for future feature) -->
+                    <div class="absolute -bottom-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 bg-emerald-400 rounded-full border-2 border-white dark:border-slate-800"></div>
+                </div>
+                
+                <!-- User info -->
+                <div class="min-w-0 flex-1">
+                    <h3 class="friend-name font-bold text-slate-900 dark:text-white text-lg sm:text-xl truncate"></h3>
+                    <p class="friend-username text-xs sm:text-sm text-slate-500 dark:text-slate-400 truncate mb-1"></p>
+                    <div class="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500">
+                        <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        <span class="friend-since">Friends since</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Bio section (hidden by default, shown if bio exists) -->
+        <div class="friend-bio-container hidden mb-4 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+            <p class="friend-bio text-xs sm:text-sm text-slate-600 dark:text-slate-300 line-clamp-3 italic"></p>
+        </div>
+        
+        <!-- Action buttons -->
+        <div class="flex gap-2 sm:gap-3">
+            <button class="view-friend-profile flex-1 px-3 py-2 sm:px-4 sm:py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg text-xs sm:text-sm">
+                <svg class="w-3 h-3 sm:w-4 sm:h-4 inline mr-1 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                </svg>
+                View Profile
+            </button>
+            <div class="relative">
+                <button class="friend-menu-button px-3 py-2 sm:px-4 sm:py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 font-semibold rounded-lg transition-all duration-200 text-xs sm:text-sm" title="More options">
+                    <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+</template>
+
+
+
+
+
+

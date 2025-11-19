@@ -1,0 +1,145 @@
+<!-- Routine Card Template Component -->
+<!-- This template is used to render workout routine cards dynamically -->
+<!-- Usage: Clone this template in JavaScript and populate with data -->
+
+<template id="routine-card-template">
+    <div class="routine-card rounded-2xl shadow-lg hover:shadow-xl transition-all overflow-hidden" data-routine-id="">
+        <!-- Card Header with Title -->
+        <div class="bg-gradient-to-r from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-700 px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-200 dark:border-slate-600">
+            <!-- Routine Title - Full Width, Clear -->
+            <div class="mb-3">
+                <h3 class="routine-name text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100"></h3>
+            </div>
+            
+            <!-- Badges and Action Buttons Row -->
+            <div class="flex items-center justify-between gap-2 flex-wrap mb-2">
+                <!-- Badges container (Imported) -->
+                <span class="routine-badges"></span>
+                
+                <!-- Action Buttons (Edit, Delete) -->
+                <div class="routine-action-buttons flex gap-2" onclick="event.stopPropagation()">
+                    <button class="edit-routine-btn px-2 py-1 text-xs font-semibold text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-lg transition-all flex items-center gap-1" title="Edit">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                        </svg>
+                        <span class="hidden sm:inline">Edit</span>
+                    </button>
+                    <button class="delete-routine-btn px-2 py-1 text-xs font-semibold text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-lg transition-all flex items-center gap-1" title="Delete">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                        <span class="hidden sm:inline">Delete</span>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Visibility Status Badge - Own Row -->
+            <div class="mb-2">
+                <div class="routine-visibility-status hidden p-2 rounded-lg border inline-flex items-center gap-2">
+                    <svg class="visibility-status-icon-compact w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"></svg>
+                    <span class="visibility-status-text-compact text-xs font-semibold"></span>
+                </div>
+            </div>
+            
+            <!-- Meta Info -->
+            <div>
+                <p class="routine-meta text-xs text-slate-600 dark:text-slate-400"></p>
+            </div>
+        </div>
+        
+        <!-- Card Body -->
+        <div class="p-4 sm:p-6">
+            <!-- Clickable area to expand/collapse -->
+            <div class="routine-header cursor-pointer flex items-start gap-3 mb-3">
+                <svg class="routine-arrow w-5 h-5 text-slate-400 dark:text-slate-500 transition-transform duration-200 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                </svg>
+                <div class="flex-1">
+                    <!-- Description (hidden if empty) -->
+                    <p class="routine-description text-sm text-slate-600 dark:text-slate-400 mb-2 hidden"></p>
+                    
+                    <!-- Imported from username container (hidden for non-imported routines) -->
+                    <div class="routine-imported-from hidden mb-2 p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-700">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                            </svg>
+                            <span class="text-xs font-semibold text-blue-900 dark:text-blue-200">From:</span>
+                            <span class="routine-creator text-sm font-bold text-blue-700 dark:text-blue-300"></span>
+                        </div>
+                    </div>
+                    
+                    <!-- Stats Container - Compact Mobile First -->
+                    <div class="routine-stats-container mb-3">
+                        <!-- Personal Stats (only shown on own routines) -->
+                        <div class="routine-personal-stats hidden mb-1.5">
+                            <div class="flex gap-1.5">
+                                <div class="flex-1 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-md p-1.5 border border-emerald-200 dark:border-emerald-700">
+                                    <div class="flex items-center gap-1">
+                                        <svg class="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                        </svg>
+                                        <span class="stat-times-completed text-sm font-bold text-emerald-800 dark:text-emerald-200">0</span>
+                                        <span class="text-2xs text-emerald-600 dark:text-emerald-400">done</span>
+                                    </div>
+                                    <p class="stat-last-used text-2xs text-emerald-600 dark:text-emerald-400 mt-0.5 truncate">Never used</p>
+                                </div>
+                                <div class="flex-1 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-md p-1.5 border border-purple-200 dark:border-purple-700">
+                                    <div class="flex items-center gap-1">
+                                        <svg class="w-2.5 h-2.5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                        </svg>
+                                        <span class="stat-current-streak text-sm font-bold text-purple-800 dark:text-purple-200">0</span>
+                                        <span class="text-2xs text-purple-600 dark:text-purple-400">streak</span>
+                                    </div>
+                                    <p class="stat-streak-label text-2xs text-purple-600 dark:text-purple-400 mt-0.5 truncate">No streak</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Public Stats (shown on all routines) - Ultra Compact -->
+                        <div class="routine-public-stats hidden">
+                            <div class="flex gap-1">
+                                <div class="flex-1 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-md p-1 text-center border border-blue-200 dark:border-blue-700">
+                                    <p class="stat-times-copied text-sm font-bold text-blue-800 dark:text-blue-200">0</p>
+                                    <p class="text-2xs text-blue-600 dark:text-blue-400">copy</p>
+                                </div>
+                                <div class="flex-1 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-md p-1 text-center border border-amber-200 dark:border-amber-700">
+                                    <p class="stat-active-users text-sm font-bold text-amber-800 dark:text-amber-200">0</p>
+                                    <p class="text-2xs text-amber-600 dark:text-amber-400">users</p>
+                                </div>
+                                <div class="flex-1 bg-gradient-to-br from-rose-50 to-red-50 dark:from-rose-900/20 dark:to-red-900/20 rounded-md p-1 text-center border border-rose-200 dark:border-rose-700">
+                                    <p class="stat-popularity-score text-sm font-bold text-rose-800 dark:text-rose-200">0</p>
+                                    <p class="text-2xs text-rose-600 dark:text-rose-400">pop</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Start Workout Button - Prominent & Always Visible -->
+                    <button class="start-routine-btn w-full px-4 py-2.5 mb-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-sm font-bold rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2" data-routine-id="" onclick="event.stopPropagation()">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <span>Start Workout</span>
+                    </button>
+                    
+                    <p class="text-xs text-slate-500 dark:text-slate-400 italic">Click to view exercises</p>
+                </div>
+            </div>
+
+            <!-- Exercise Preview - Collapsible Content -->
+            <div class="routine-content hidden">
+                <!-- Exercises List -->
+                <div>
+                    <p class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 routine-exercises-header">Exercises</p>
+                    <div class="routine-exercises-list space-y-2 max-h-64 overflow-y-auto">
+                        <!-- Exercises will be dynamically inserted here by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+

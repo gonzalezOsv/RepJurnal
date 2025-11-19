@@ -39,7 +39,7 @@
                 <svg class="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
                 </svg>
-                <span class="text-xs sm:text-sm font-bold text-gray-700 dark:text-gray-300">Main Lifts</span>
+                <span class="text-xs sm:text-sm font-bold text-gray-700 dark:text-gray-300">Tracked Lifts</span>
               </button>
               
               <button class="tab-button flex flex-col items-center justify-center p-4 sm:p-5 rounded-xl border-2 border-slate-200 dark:border-gray-700 transition-all duration-200 bg-white dark:bg-gray-800 hover:bg-gradient-to-br hover:from-indigo-50 hover:to-blue-50 dark:hover:from-gray-700 dark:hover:to-gray-700 hover:border-indigo-300 dark:hover:border-indigo-600 shadow-sm hover:shadow-md" data-tab="analytics">
@@ -56,11 +56,11 @@
                 <span class="text-xs sm:text-sm font-bold text-gray-700 dark:text-gray-300">Records</span>
               </button>
               
-              <button class="tab-button flex flex-col items-center justify-center p-4 sm:p-5 rounded-xl border-2 border-slate-200 dark:border-gray-700 transition-all duration-200 bg-white dark:bg-gray-800 hover:bg-gradient-to-br hover:from-indigo-50 hover:to-blue-50 dark:hover:from-gray-700 dark:hover:to-gray-700 hover:border-indigo-300 dark:hover:border-indigo-600 shadow-sm hover:shadow-md" data-tab="balance">
+              <button class="tab-button flex flex-col items-center justify-center p-4 sm:p-5 rounded-xl border-2 border-slate-200 dark:border-gray-700 transition-all duration-200 bg-white dark:bg-gray-800 hover:bg-gradient-to-br hover:from-indigo-50 hover:to-blue-50 dark:hover:from-gray-700 dark:hover:to-gray-700 hover:border-indigo-300 dark:hover:border-indigo-600 shadow-sm hover:shadow-md" data-tab="journal">
                 <svg class="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
                 </svg>
-                <span class="text-xs sm:text-sm font-bold text-gray-700 dark:text-gray-300">Balance</span>
+                <span class="text-xs sm:text-sm font-bold text-gray-700 dark:text-gray-300">Journal</span>
               </button>
               
             </div>
@@ -72,7 +72,7 @@
     <!-- Main Lifts Tab -->
     <div id="main-lifts" class="tab-content active">
       
-      <!-- Big 3 Journal Page -->
+      <!-- Tracked Exercises Section -->
       <div class="mb-8 sm:mb-12">
         <div class="bg-gradient-to-br from-slate-50 via-white to-blue-50 dark:from-gray-800 dark:via-gray-900 dark:to-blue-900 rounded-xl sm:rounded-2xl shadow-lg border-2 border-slate-200 dark:border-gray-700 p-4 sm:p-6 lg:p-8 relative overflow-hidden">
           <!-- Decorative corner -->
@@ -80,161 +80,57 @@
           
           <!-- Page Header -->
           <div class="relative z-10 mb-8">
-            <div class="flex items-center justify-center gap-3 mb-3">
-              <div class="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 dark:from-blue-500 dark:to-indigo-500 rounded-xl flex items-center justify-center shadow-md">
-                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
-                </svg>
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mb-3">
+              <div class="flex items-center justify-center gap-3">
+                <div class="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 dark:from-blue-500 dark:to-indigo-500 rounded-xl flex items-center justify-center shadow-md">
+                  <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                  </svg>
+                </div>
+                <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-100">My Tracked Lifts</h2>
               </div>
-              <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-100">The Big 3</h2>
+              <button id="manageTrackedBtn" class="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-500 dark:to-indigo-500 hover:from-blue-700 hover:to-indigo-700 dark:hover:from-blue-600 dark:hover:to-indigo-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all duration-300 flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                </svg>
+                Manage Tracked Lifts
+              </button>
             </div>
-            <p class="text-center text-gray-600 dark:text-gray-400 text-sm sm:text-base mb-3">Your fundamental strength movements</p>
+            <p class="text-center text-gray-600 dark:text-gray-400 text-sm sm:text-base mb-3">Track your most important exercises</p>
             <div class="h-1 w-32 mx-auto bg-gradient-to-r from-blue-300 via-indigo-300 dark:from-blue-700 dark:via-indigo-700 to-transparent rounded-full"></div>
           </div>
         
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 max-w-7xl mx-auto relative z-10">
-          <!-- Bench Press Card -->
-          <div class="group bg-white dark:bg-gray-800 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border-2 border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600">
-            <div class="bg-white dark:bg-gray-800 border-b-2 border-gray-200 dark:border-gray-700 p-6">
-              <div class="flex items-center justify-between mb-4">
-                <div>
-                  <h3 class="text-gray-800 dark:text-gray-100 text-xl font-bold mb-1">Bench Press</h3>
-                  <p class="text-gray-500 dark:text-gray-400 text-sm">Upper Body Power</p>
-                </div>
-                <div class="bg-blue-50 dark:bg-blue-900/50 p-3 rounded-lg">
-                  <svg class="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
-                  </svg>
-                </div>
-              </div>
-              <div id="benchPressPR" class="bg-blue-50 dark:bg-blue-900/50 border border-blue-200 dark:border-blue-700 rounded-xl p-4">
-                <div class="text-center">
-                  <p class="text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wider mb-1">Personal Record</p>
-                  <p class="text-blue-700 dark:text-blue-400 text-3xl font-bold" id="benchPrValue">--</p>
-                  <p class="text-gray-500 dark:text-gray-500 text-xs mt-1" id="benchPrDate">Loading...</p>
-                </div>
-              </div>
-            </div>
-            <div class="p-6 bg-gray-50 dark:bg-gray-900">
-              <div class="h-56">
-                <canvas id="benchPressChart"></canvas>
-              </div>
-            </div>
-          </div>
-
-          <!-- Squat Card -->
-          <div class="group bg-white dark:bg-gray-800 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border-2 border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-600">
-            <div class="bg-white dark:bg-gray-800 border-b-2 border-gray-200 dark:border-gray-700 p-6">
-              <div class="flex items-center justify-between mb-4">
-                <div>
-                  <h3 class="text-gray-800 dark:text-gray-100 text-xl font-bold mb-1">Squats</h3>
-                  <p class="text-gray-500 dark:text-gray-400 text-sm">Lower Body Strength</p>
-                </div>
-                <div class="bg-green-50 dark:bg-green-900/50 p-3 rounded-lg">
-                  <svg class="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
-                  </svg>
-                </div>
-              </div>
-              <div id="squatPR" class="bg-green-50 dark:bg-green-900/50 border border-green-200 dark:border-green-700 rounded-xl p-4">
-                <div class="text-center">
-                  <p class="text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wider mb-1">Personal Record</p>
-                  <p class="text-green-700 dark:text-green-400 text-3xl font-bold" id="squatPrValue">--</p>
-                  <p class="text-gray-500 dark:text-gray-500 text-xs mt-1" id="squatPrDate">Loading...</p>
-                </div>
-              </div>
-            </div>
-            <div class="p-6 bg-gray-50 dark:bg-gray-900">
-              <div class="h-56">
-                <canvas id="squatChart"></canvas>
-              </div>
-            </div>
-          </div>
-
-          <!-- Deadlift Card -->
-          <div class="group bg-white dark:bg-gray-800 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border-2 border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-600">
-            <div class="bg-white dark:bg-gray-800 border-b-2 border-gray-200 dark:border-gray-700 p-6">
-              <div class="flex items-center justify-between mb-4">
-                <div>
-                  <h3 class="text-gray-800 dark:text-gray-100 text-xl font-bold mb-1">Deadlift</h3>
-                  <p class="text-gray-500 dark:text-gray-400 text-sm">Total Body Power</p>
-                </div>
-                <div class="bg-purple-50 dark:bg-purple-900/50 p-3 rounded-lg">
-                  <svg class="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
-                  </svg>
-                </div>
-              </div>
-              <div id="deadliftPR" class="bg-purple-50 dark:bg-purple-900/50 border border-purple-200 dark:border-purple-700 rounded-xl p-4">
-                <div class="text-center">
-                  <p class="text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wider mb-1">Personal Record</p>
-                  <p class="text-purple-700 dark:text-purple-400 text-3xl font-bold" id="deadliftPrValue">--</p>
-                  <p class="text-gray-500 dark:text-gray-500 text-xs mt-1" id="deadliftPrDate">Loading...</p>
-                </div>
-              </div>
-            </div>
-            <div class="p-6 bg-gray-50 dark:bg-gray-900">
-              <div class="h-56">
-                <canvas id="deadliftChart"></canvas>
-              </div>
-            </div>
+        <!-- Dynamic Exercise Cards Container -->
+        <div id="trackedExercisesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 max-w-7xl mx-auto relative z-10">
+          <!-- Exercise cards will be dynamically inserted here -->
+          <div class="col-span-full text-center py-12">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400 mx-auto mb-4"></div>
+            <p class="text-gray-500 dark:text-gray-400">Loading your tracked lifts...</p>
           </div>
         </div>
-        <!-- End of grid -->
+        
+        <!-- Empty State (shown when no tracked exercises) -->
+        <div id="noTrackedExercises" class="hidden text-center py-12 relative z-10">
+          <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 max-w-md mx-auto border-2 border-gray-200 dark:border-gray-700">
+            <div class="w-20 h-20 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/50 dark:to-indigo-900/50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg class="w-10 h-10 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+              </svg>
+            </div>
+            <h3 class="text-xl font-bold text-gray-800 dark:text-gray-100 mb-2">No Tracked Lifts Yet</h3>
+            <p class="text-gray-600 dark:text-gray-400 mb-6">Start tracking your favorite exercises to see your progress over time!</p>
+            <button id="addFirstTrackedBtn" class="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-500 dark:to-indigo-500 hover:from-blue-700 hover:to-indigo-700 dark:hover:from-blue-600 dark:hover:to-indigo-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all duration-300">
+              Add Your First Lift
+            </button>
+          </div>
+        </div>
+        <!-- End tracked exercises grid -->
         </div>
         <!-- End journal page wrapper -->
       </div>
 
       <!-- Custom Exercise Journal Page -->
-      <div id="customExerciseSection" class="mt-6 sm:mt-8 lg:mt-12">
-        <div class="bg-gradient-to-br from-slate-50 via-white to-purple-50 dark:from-gray-800 dark:via-gray-900 dark:to-purple-900 rounded-xl sm:rounded-2xl shadow-lg border-2 border-slate-200 dark:border-gray-700 p-4 sm:p-6 lg:p-8 relative overflow-hidden">
-          <!-- Decorative corner -->
-          <div class="absolute top-0 left-0 w-32 h-32 bg-gradient-to-br from-purple-100 dark:from-purple-900 to-transparent rounded-br-full opacity-40"></div>
-          
-          <div class="relative z-10">
-            <div class="flex flex-col items-center mb-6 gap-4">
-              <div class="flex items-center justify-center gap-3">
-                <div class="w-10 h-10 bg-gradient-to-br from-purple-600 to-pink-600 dark:from-purple-500 dark:to-pink-500 rounded-xl flex items-center justify-center shadow-md">
-                  <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                  </svg>
-                </div>
-                <div class="text-center">
-                  <h2 class="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100">Custom Exercise Tracking</h2>
-                  <p class="text-gray-600 dark:text-gray-400 text-xs sm:text-sm mt-1">Track any exercise you perform regularly</p>
-                </div>
-              </div>
-              <button id="addExerciseBtn" class="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-500 dark:to-pink-500 hover:from-purple-700 hover:to-pink-700 dark:hover:from-purple-600 dark:hover:to-pink-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
-                </svg>
-                Add Exercise
-              </button>
-            </div>
-            <div class="h-1 w-full bg-gradient-to-r from-purple-300 via-pink-200 dark:from-purple-700 dark:via-pink-700 to-transparent rounded-full mb-6"></div>
-          </div>
-          
-          <div class="mb-6">
-            <label for="customExerciseSelect" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-              Select an exercise to view its progression
-            </label>
-            <select id="customExerciseSelect" class="w-full p-4 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:border-purple-500 dark:focus:border-purple-400 focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-800 transition-all text-base">
-              <option value="">Choose an exercise...</option>
-            </select>
-          </div>
 
-          <div id="customChartContainer" class="hidden mt-6">
-            <div class="bg-gradient-to-r from-purple-500 to-pink-500 dark:from-purple-600 dark:to-pink-600 rounded-t-2xl p-4 sm:p-6">
-              <h3 id="customChartTitle" class="text-white text-lg sm:text-xl font-bold text-center">Custom Exercise</h3>
-            </div>
-            <div class="bg-gray-50 dark:bg-gray-800 rounded-b-2xl p-4 sm:p-6">
-              <div class="h-64 sm:h-80">
-                <canvas id="customExerciseChart"></canvas>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- Analytics Tab -->
@@ -247,75 +143,173 @@
         
         <!-- Page Header -->
         <div class="relative z-10 mb-8">
-          <div class="flex items-center justify-center gap-3 mb-3">
-            <div class="w-10 h-10 bg-gradient-to-br from-cyan-600 to-blue-600 dark:from-cyan-500 dark:to-blue-500 rounded-xl flex items-center justify-center shadow-md">
-              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-              </svg>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 bg-gradient-to-br from-cyan-600 to-blue-600 dark:from-cyan-500 dark:to-blue-500 rounded-xl flex items-center justify-center shadow-md">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                </svg>
+              </div>
+              <div>
+                <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-100">Analytics Dashboard</h2>
+                <p class="text-gray-600 dark:text-gray-400 text-xs sm:text-sm">Optimize your training with data insights</p>
+              </div>
             </div>
-            <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-100">Analytics Dashboard</h2>
+            <select id="analytics-time-range" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm">
+              <option value="0">Today</option>
+              <option value="7" selected>7 Days</option>
+              <option value="14">14 Days</option>
+              <option value="30">30 Days</option>
+            </select>
           </div>
-          <p class="text-center text-gray-600 dark:text-gray-400 text-sm sm:text-base mb-3">Deep dive into your training data</p>
-          <div class="h-1 w-32 mx-auto bg-gradient-to-r from-cyan-300 via-blue-300 dark:from-cyan-700 dark:via-blue-700 to-transparent rounded-full"></div>
         </div>
         
-        <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 relative z-10">
+        <!-- Loading State -->
+        <div id="analytics-loading" class="relative z-10 text-center py-12">
+          <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600 dark:border-cyan-400"></div>
+          <p class="mt-4 text-gray-600 dark:text-gray-400">Loading analytics...</p>
+        </div>
+
+        <!-- KPI Cards -->
+        <div id="analytics-kpi-cards" class="relative z-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 hidden">
+          <!-- Cards will be dynamically inserted here -->
+        </div>
+
+        <!-- Main Charts Row -->
+        <div id="analytics-main-charts" class="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 hidden">
           
-          <!-- Volume Trend Chart -->
+          <!-- Volume by Muscle Group -->
+          <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md border-2 border-slate-200 dark:border-gray-700 p-6 hover:shadow-lg hover:border-cyan-300 dark:hover:border-cyan-600 transition-all">
+            <div class="flex items-center justify-center gap-3 mb-4 pb-3 border-b-2 border-blue-200 dark:border-blue-700">
+              <div class="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/50 dark:to-blue-800/50 p-3 rounded-lg border border-blue-200 dark:border-blue-700">
+                <svg class="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                </svg>
+              </div>
+              <div class="text-center">
+                <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Volume by Muscle</h3>
+                <p class="text-gray-600 dark:text-gray-400 text-xs sm:text-sm">Training distribution</p>
+              </div>
+            </div>
+            <div class="h-72">
+              <canvas id="volumeByMuscleChart"></canvas>
+            </div>
+            <div class="mt-8 pt-4 border-t border-blue-100 dark:border-blue-900/40">
+              <div class="flex items-center justify-between mb-3">
+                <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">
+                  Conditioning Mix
+                </h4>
+                <span class="text-xs text-gray-500 dark:text-gray-400">Last selected range</span>
+              </div>
+              <div class="h-48">
+                <canvas id="conditioningVolumeChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Muscle Balance Radar -->
           <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md border-2 border-slate-200 dark:border-gray-700 p-6 hover:shadow-lg hover:border-cyan-300 dark:hover:border-cyan-600 transition-all">
             <div class="flex items-center justify-center gap-3 mb-4 pb-3 border-b-2 border-purple-200 dark:border-purple-700">
               <div class="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/50 dark:to-purple-800/50 p-3 rounded-lg border border-purple-200 dark:border-purple-700">
                 <svg class="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/>
+                </svg>
+              </div>
+              <div class="text-center">
+                <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Muscle Balance</h3>
+                <p class="text-gray-600 dark:text-gray-400 text-xs sm:text-sm">Development score</p>
+              </div>
+            </div>
+            <div class="h-72">
+              <canvas id="muscleBalanceChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Secondary Charts Row -->
+        <div id="analytics-secondary-charts" class="relative z-10 grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 hidden">
+          
+          <!-- Volume Progression -->
+          <div class="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow-md border-2 border-slate-200 dark:border-gray-700 p-6 hover:shadow-lg hover:border-cyan-300 dark:hover:border-cyan-600 transition-all">
+            <div class="flex items-center justify-center gap-3 mb-4 pb-3 border-b-2 border-green-200 dark:border-green-700">
+              <div class="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/50 dark:to-green-800/50 p-3 rounded-lg border border-green-200 dark:border-green-700">
+                <svg class="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
                 </svg>
               </div>
               <div class="text-center">
-                <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Volume Trend</h3>
-                <p class="text-gray-600 dark:text-gray-400 text-xs sm:text-sm">Total weight lifted over time</p>
+                <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Volume Progression</h3>
+                <p class="text-gray-600 dark:text-gray-400 text-xs sm:text-sm">4-week trend</p>
               </div>
             </div>
-            <div class="h-72">
-              <canvas id="volumeTrendChart"></canvas>
+            <div class="h-64">
+              <canvas id="volumeProgressionChart"></canvas>
             </div>
           </div>
 
-          <!-- Consistency Chart -->
+          <!-- Push/Pull Ratio -->
           <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md border-2 border-slate-200 dark:border-gray-700 p-6 hover:shadow-lg hover:border-cyan-300 dark:hover:border-cyan-600 transition-all">
-            <div class="flex items-center justify-center gap-3 mb-4 pb-3 border-b-2 border-green-200 dark:border-green-700">
-              <div class="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/50 dark:to-green-800/50 p-3 rounded-lg border border-green-200 dark:border-green-700">
-                <svg class="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            <div class="flex items-center justify-center gap-3 mb-4 pb-3 border-b-2 border-orange-200 dark:border-orange-700">
+              <div class="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/50 dark:to-orange-800/50 p-3 rounded-lg border border-orange-200 dark:border-orange-700">
+                <svg class="w-6 h-6 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"/>
                 </svg>
               </div>
               <div class="text-center">
-                <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Workout Consistency</h3>
-                <p class="text-gray-600 dark:text-gray-400 text-xs sm:text-sm">Your training frequency</p>
+                <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Push/Pull</h3>
+                <p class="text-gray-600 dark:text-gray-400 text-xs sm:text-sm">Balance</p>
               </div>
             </div>
-            <div class="h-72">
-              <canvas id="consistencyChart"></canvas>
+            <div class="h-64">
+              <canvas id="pushPullChart"></canvas>
+            </div>
+            <div id="push-pull-recommendation" class="mt-4 text-center text-sm"></div>
+          </div>
+        </div>
+
+        <!-- Bottom Row: Insights -->
+        <div id="analytics-insights" class="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-6 hidden">
+          
+          <!-- Weak Points Alert -->
+          <div id="weak-points-analysis" class="bg-gradient-to-br from-white via-slate-50 to-indigo-50 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950 rounded-xl shadow-md border-2 border-slate-200/80 dark:border-slate-700/70 p-6 hover:shadow-lg hover:border-cyan-300 dark:hover:border-cyan-600 transition-all">
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-2 mb-4 pb-3 border-b-2 border-orange-200/70 dark:border-amber-600/60 text-center">
+              <svg class="w-5 h-5 text-orange-500 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+              </svg>
+              <h3 class="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-100">Weak Points Analysis</h3>
+            </div>
+            <div id="weak-points-list" class="space-y-3 mb-4">
+              <!-- Weak points will be inserted here -->
             </div>
           </div>
 
-          <!-- Body Part Imbalance Chart -->
-          <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md border-2 border-slate-200 dark:border-gray-700 p-6 xl:col-span-2 hover:shadow-lg hover:border-cyan-300 dark:hover:border-cyan-600 transition-all">
-            <div class="flex items-center justify-center gap-3 mb-4 pb-3 border-b-2 border-blue-200 dark:border-blue-700">
-              <div class="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/50 dark:to-blue-800/50 p-3 rounded-lg border border-blue-200 dark:border-blue-700">
-                <svg class="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/>
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/>
-                </svg>
-              </div>
-              <div class="text-center">
-                <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Training Distribution</h3>
-                <p class="text-gray-600 dark:text-gray-400 text-xs sm:text-sm">Balance across body parts</p>
-              </div>
+          <!-- Recent PRs -->
+          <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md border-2 border-slate-200 dark:border-gray-700 p-6 hover:shadow-lg hover:border-cyan-300 dark:hover:border-cyan-600 transition-all">
+            <div class="flex items-center gap-2 mb-4 pb-3 border-b-2 border-green-200 dark:border-green-700">
+              <svg class="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+              </svg>
+              <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Recent Personal Records</h3>
             </div>
-            <div class="h-96">
-              <canvas id="imbalanceChart"></canvas>
+            <div id="recent-prs-list" class="space-y-3 mb-4">
+              <!-- PRs will be inserted here -->
             </div>
           </div>
         </div>
+
+        <!-- AI Recommendations -->
+        <div id="analytics-recommendations" class="relative z-10 mt-6 bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-700 dark:to-purple-700 rounded-xl p-6 text-white hidden">
+          <h3 class="text-xl font-bold mb-3 flex items-center gap-2">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+            </svg>
+            AI-Powered Recommendations
+          </h3>
+          <div id="recommendations-list" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- Recommendations will be inserted here -->
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -421,7 +415,144 @@
   </div>
 </div>
 
-<!-- Add Exercise Modal -->
+<!-- Manage Tracked Lifts Modal -->
+<div id="manageTrackedModal" class="hidden fixed inset-0 bg-black bg-opacity-60 dark:bg-black dark:bg-opacity-70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="bg-white dark:bg-gray-800 rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-hidden shadow-2xl transform transition-all animate__animated animate__fadeInUp">
+    <!-- Modal Header -->
+    <div class="sticky top-0 bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-500 dark:to-indigo-500 px-6 py-5 flex justify-between items-center z-10">
+      <div class="flex items-center gap-3">
+        <div class="bg-white bg-opacity-20 p-2 rounded-lg">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+          </svg>
+        </div>
+        <div>
+          <h3 class="text-2xl font-bold text-white">Manage Tracked Lifts</h3>
+          <p class="text-blue-100 text-sm">Add, remove, and reorder your tracked exercises</p>
+        </div>
+      </div>
+      <button id="closeTrackedModal" class="text-white hover:bg-white hover:bg-opacity-20 p-2 rounded-full transition-all">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    
+    <!-- Modal Content -->
+    <div class="p-6 bg-white dark:bg-gray-800">
+      
+      <!-- Add New Exercise Section -->
+      <div class="mb-6">
+        <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-3">
+          <div class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            Add Exercise to Track
+          </div>
+        </label>
+        <select id="addExerciseDropdown" class="w-full p-4 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 transition-all text-base font-medium">
+          <option value="">Select an exercise to add...</option>
+          <optgroup label="Loading..."></optgroup>
+        </select>
+      </div>
+
+      <!-- Currently Tracked Exercises List -->
+      <div class="mb-4">
+        <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-3">
+          <div class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            Your Tracked Lifts (<span id="trackedCountLabel">0</span>)
+          </div>
+        </label>
+        
+        <!-- Tracked List Container -->
+        <div id="trackedExercisesList" class="space-y-2 max-h-[40vh] overflow-y-auto">
+          <!-- Empty state -->
+          <div id="emptyTrackedState" class="text-center py-8 bg-gray-50 dark:bg-gray-700 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600">
+            <svg class="w-12 h-12 mx-auto text-gray-400 dark:text-gray-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+            </svg>
+            <p class="text-gray-500 dark:text-gray-400 text-sm">No exercises tracked yet</p>
+            <p class="text-gray-400 dark:text-gray-500 text-xs mt-1">Select from the dropdown above to start</p>
+          </div>
+          <!-- Dynamic tracked exercises will be inserted here -->
+        </div>
+      </div>
+
+      <!-- Helpful Tips -->
+      <div class="bg-blue-50 dark:bg-blue-900/30 rounded-xl p-4 border border-blue-200 dark:border-blue-700">
+        <div class="flex items-start gap-3">
+          <svg class="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <div class="text-sm text-blue-900 dark:text-blue-100">
+            <p class="font-semibold mb-1">💡 Pro Tips:</p>
+            <ul class="text-xs space-y-1 text-blue-800 dark:text-blue-200">
+              <li>• Track 3-6 exercises for an organized dashboard</li>
+              <li>• Focus on compound movements (Bench, Squat, Deadlift)</li>
+              <li>• Drag to reorder (coming soon)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Action Buttons -->
+    <div class="sticky bottom-0 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-6 py-4">
+      <button id="closeTrackedModalBtn" class="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-500 dark:to-indigo-500 hover:from-blue-700 hover:to-indigo-700 dark:hover:from-blue-600 dark:hover:to-indigo-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+        </svg>
+        Done
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteConfirmModal" class="hidden fixed inset-0 bg-black bg-opacity-60 dark:bg-black dark:bg-opacity-70 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+  <div class="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full shadow-2xl transform transition-all animate__animated animate__fadeInUp relative z-[61]">
+    <!-- Modal Header -->
+    <div class="px-6 py-5 border-b border-gray-200 dark:border-gray-700">
+      <div class="flex items-center gap-3">
+        <div class="bg-red-100 dark:bg-red-900/30 p-2 rounded-lg">
+          <svg class="w-6 h-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+          </svg>
+        </div>
+        <h3 class="text-xl font-bold text-gray-900 dark:text-white">Remove Tracked Exercise?</h3>
+      </div>
+    </div>
+    
+    <!-- Modal Content -->
+    <div class="px-6 py-5">
+      <p class="text-gray-700 dark:text-gray-300 mb-4">
+        Are you sure you want to remove <strong class="text-gray-900 dark:text-white" id="deleteExerciseName">this exercise</strong> from your tracked lifts?
+      </p>
+      <p class="text-sm text-gray-500 dark:text-gray-400">
+        This will remove it from your Main Lifts dashboard, but your workout history will remain unchanged.
+      </p>
+    </div>
+    
+    <!-- Action Buttons -->
+    <div class="px-6 py-4 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex gap-3">
+      <button id="cancelDeleteBtn" class="flex-1 px-4 py-2.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold rounded-xl transition-all">
+        Cancel
+      </button>
+      <button id="confirmDeleteBtn" class="flex-1 px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+        </svg>
+        Remove
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Exercise Modal (for custom tracking below tracked section) -->
 <div id="addExerciseModal" class="hidden fixed inset-0 bg-black bg-opacity-60 dark:bg-black dark:bg-opacity-70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
   <div class="bg-white dark:bg-gray-800 rounded-3xl max-w-3xl w-full max-h-[85vh] overflow-hidden shadow-2xl transform transition-all animate__animated animate__fadeInUp">
     <div class="sticky top-0 bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-500 dark:to-pink-500 px-6 py-5 flex justify-between items-center">
@@ -450,240 +581,143 @@
   </div>
 </div>
 
-    <!-- Balance Tab -->
-    <div id="balance" class="tab-content hidden">
+    <!-- Workout Journal Tab -->
+    <div id="journal" class="tab-content hidden">
       
-      <!-- Balance Journal Page -->
-      <div class="bg-gradient-to-br from-slate-50 via-white to-emerald-50 dark:from-gray-800 dark:via-gray-900 dark:to-emerald-900 rounded-xl sm:rounded-2xl shadow-lg border-2 border-slate-200 dark:border-gray-700 p-4 sm:p-6 lg:p-8 relative overflow-hidden">
+      <!-- Workout Journal Page -->
+      <div class="bg-gradient-to-br from-slate-50 via-white to-indigo-50 dark:from-gray-800 dark:via-gray-900 dark:to-indigo-900 rounded-xl sm:rounded-2xl shadow-lg border-2 border-slate-200 dark:border-gray-700 p-4 sm:p-6 lg:p-8 relative overflow-hidden">
         <!-- Decorative corner -->
-        <div class="absolute top-0 left-0 w-32 h-32 bg-gradient-to-br from-emerald-100 dark:from-emerald-900 to-transparent rounded-br-full opacity-40"></div>
+        <div class="absolute top-0 left-0 w-32 h-32 bg-gradient-to-br from-indigo-100 dark:from-indigo-900 to-transparent rounded-br-full opacity-40"></div>
         
         <!-- Page Header -->
         <div class="relative z-10 mb-6">
-          <div class="flex items-center justify-center gap-3 mb-3">
-            <div class="w-10 h-10 bg-gradient-to-br from-emerald-600 to-green-600 dark:from-emerald-500 dark:to-green-500 rounded-xl flex items-center justify-center shadow-md">
-              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/>
-              </svg>
+          <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mb-3">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 bg-gradient-to-br from-indigo-600 to-blue-600 dark:from-indigo-500 dark:to-blue-500 rounded-xl flex items-center justify-center shadow-md">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                </svg>
+              </div>
+              <div>
+                <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-100">Workout Journal</h2>
+                <p class="text-gray-600 dark:text-gray-400 text-xs sm:text-sm">Your complete workout history</p>
+              </div>
             </div>
-            <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-100">Workout Balance</h2>
+            
+            <!-- Filter Controls -->
+            <div class="flex gap-2">
+              <select id="journal-filter-days" class="px-3 py-2 sm:px-4 sm:py-2 border-2 border-indigo-300 dark:border-indigo-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm font-semibold focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 transition-all">
+                <option value="7" selected>Last 7 Days</option>
+                <option value="14">Last 14 Days</option>
+                <option value="30">Last 30 Days</option>
+                <option value="60">Last 60 Days</option>
+                <option value="90">Last 90 Days</option>
+                <option value="all">All Time</option>
+              </select>
+            </div>
           </div>
-          <p class="text-center text-gray-600 dark:text-gray-400 text-sm sm:text-base mb-3">Analyze your training balance over the last 7 days</p>
-          <div class="h-1 w-32 mx-auto bg-gradient-to-r from-emerald-300 via-green-300 dark:from-emerald-700 dark:via-green-700 to-transparent rounded-full"></div>
+          <div class="h-1 w-32 mx-auto bg-gradient-to-r from-indigo-300 via-blue-300 dark:from-indigo-700 dark:via-blue-700 to-transparent rounded-full"></div>
         </div>
 
         <!-- Loading State -->
-        <div id="balance-loading" class="relative z-10">
+        <div id="journal-loading" class="relative z-10">
           <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md border-2 border-slate-200 dark:border-gray-700 p-6 max-w-md mx-auto">
-            <div class="flex flex-col items-center justify-center">
-              <div class="inline-block animate-spin rounded-full h-10 w-10 border-b-3 border-emerald-600 dark:border-emerald-400 mb-3"></div>
-              <p class="text-gray-700 dark:text-gray-300 font-bold text-base mb-1">Analyzing Workout Balance</p>
-              <p class="text-gray-500 dark:text-gray-400 text-sm">Calculating body part frequency...</p>
+            <div class="flex flex-col items-center justify-center py-8">
+              <div class="inline-block animate-spin rounded-full h-10 w-10 border-b-3 border-indigo-600 dark:border-indigo-400 mb-3"></div>
+              <p class="text-gray-700 dark:text-gray-300 font-bold text-base mb-1">Loading Workout History</p>
+              <p class="text-gray-500 dark:text-gray-400 text-sm">Fetching your workouts...</p>
             </div>
           </div>
         </div>
 
-        <!-- Balance Content Container -->
-        <div id="balance-content" class="hidden relative z-10">
-        
-        <!-- Recommendations Section -->
-        <div id="balance-recommendations" class="mb-8"></div>
-
-        <!-- Two Column Layout: Body Diagram + Body Parts List -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <!-- Workout Journal Content -->
+        <div id="journal-content" class="hidden relative z-10">
           
-          <!-- Left: Simple Body Diagram -->
-          <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md border-2 border-slate-200 dark:border-gray-700 p-6 hover:shadow-lg transition-all">
-            <div class="flex items-center justify-center gap-2 mb-6 pb-3 border-b-2 border-emerald-200 dark:border-emerald-700">
-              <div class="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/50 dark:to-emerald-800/50 p-2 rounded-lg border border-emerald-200 dark:border-emerald-700">
-                <svg class="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                </svg>
+          <!-- Summary Stats Row -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
+            <div class="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 rounded-xl p-4 border border-blue-200 dark:border-blue-700">
+              <div class="text-center">
+                <p class="text-2xl sm:text-3xl font-bold text-blue-700 dark:text-blue-400" id="journal-total-workouts">0</p>
+                <p class="text-xs text-blue-600 dark:text-blue-400 font-semibold">Workouts</p>
               </div>
-              <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Visual Body Map</h3>
             </div>
-            <div class="flex justify-center">
-              <svg id="body-diagram" viewBox="0 0 300 600" class="w-full max-w-sm" style="max-height: 500px;">
-                <!-- Head -->
-                <ellipse cx="150" cy="50" rx="30" ry="35" fill="#e5e7eb" stroke="#6b7280" stroke-width="2"/>
-                
-                <!-- Shoulders -->
-                <g id="shoulders-visual">
-                  <ellipse cx="110" cy="100" rx="20" ry="15" fill="#e5e7eb" stroke="#6b7280" stroke-width="2"/>
-                  <ellipse cx="190" cy="100" rx="20" ry="15" fill="#e5e7eb" stroke="#6b7280" stroke-width="2"/>
-                  <text x="150" y="105" text-anchor="middle" font-size="10" fill="#374151">Shoulders</text>
-                </g>
-                
-                <!-- Chest -->
-                <g id="chest-visual">
-                  <rect x="130" y="110" width="40" height="50" rx="10" fill="#e5e7eb" stroke="#6b7280" stroke-width="2"/>
-                  <text x="150" y="140" text-anchor="middle" font-size="12" fill="#374151">Chest</text>
-                </g>
-                
-                <!-- Abs -->
-                <g id="abs-visual">
-                  <rect x="135" y="165" width="30" height="45" rx="5" fill="#e5e7eb" stroke="#6b7280" stroke-width="2"/>
-                  <line x1="135" y1="182" x2="165" y2="182" stroke="#6b7280" stroke-width="1"/>
-                  <line x1="135" y1="193" x2="165" y2="193" stroke="#6b7280" stroke-width="1"/>
-                  <text x="150" y="190" text-anchor="middle" font-size="11" fill="#374151">Abs</text>
-                </g>
-                
-                <!-- Back (behind, shown with label) -->
-                <g id="back-visual">
-                  <text x="150" y="135" text-anchor="middle" font-size="9" fill="#6b7280" font-style="italic">Back</text>
-                </g>
-                
-                <!-- Arms -->
-                <!-- Left Bicep -->
-                <g id="biceps-visual-left">
-                  <rect x="80" y="110" width="15" height="55" rx="7" fill="#e5e7eb" stroke="#6b7280" stroke-width="2"/>
-                  <text x="87" y="142" text-anchor="middle" font-size="8" fill="#374151" transform="rotate(-90 87 142)">Biceps</text>
-                </g>
-                
-                <!-- Right Bicep -->
-                <g id="biceps-visual-right">
-                  <rect x="205" y="110" width="15" height="55" rx="7" fill="#e5e7eb" stroke="#6b7280" stroke-width="2"/>
-                </g>
-                
-                <!-- Left Tricep -->
-                <g id="triceps-visual-left">
-                  <rect x="70" y="115" width="8" height="50" rx="4" fill="#e5e7eb" stroke="#6b7280" stroke-width="1" opacity="0.7"/>
-                </g>
-                
-                <!-- Right Tricep -->
-                <g id="triceps-visual-right">
-                  <rect x="222" y="115" width="8" height="50" rx="4" fill="#e5e7eb" stroke="#6b7280" stroke-width="1" opacity="0.7"/>
-                  <text x="226" y="145" text-anchor="middle" font-size="8" fill="#374151" transform="rotate(90 226 145)">Triceps</text>
-                </g>
-                
-                <!-- Glutes -->
-                <g id="glutes-visual">
-                  <ellipse cx="150" cy="220" rx="35" ry="20" fill="#e5e7eb" stroke="#6b7280" stroke-width="2"/>
-                  <text x="150" y="225" text-anchor="middle" font-size="11" fill="#374151">Glutes</text>
-                </g>
-                
-                <!-- Legs/Quads -->
-                <g id="legs-visual">
-                  <!-- Left Leg -->
-                  <rect x="125" y="240" width="20" height="90" rx="10" fill="#e5e7eb" stroke="#6b7280" stroke-width="2"/>
-                  <!-- Right Leg -->
-                  <rect x="155" y="240" width="20" height="90" rx="10" fill="#e5e7eb" stroke="#6b7280" stroke-width="2"/>
-                  <text x="150" y="290" text-anchor="middle" font-size="12" fill="#374151">Legs</text>
-                </g>
-                
-                <!-- Quads (front thigh detail) -->
-                <g id="quads-visual">
-                  <line x1="130" y1="250" x2="130" y2="310" stroke="#6b7280" stroke-width="1" opacity="0.5"/>
-                  <line x1="140" y1="250" x2="140" y2="310" stroke="#6b7280" stroke-width="1" opacity="0.5"/>
-                  <line x1="160" y1="250" x2="160" y2="310" stroke="#6b7280" stroke-width="1" opacity="0.5"/>
-                  <line x1="170" y1="250" x2="170" y2="310" stroke="#6b7280" stroke-width="1" opacity="0.5"/>
-                  <text x="150" y="270" text-anchor="middle" font-size="9" fill="#6b7280">Quads</text>
-                </g>
-                
-                <!-- Hamstrings (back, labeled) -->
-                <g id="hamstrings-visual">
-                  <text x="150" y="315" text-anchor="middle" font-size="8" fill="#6b7280" font-style="italic">Hamstrings</text>
-                </g>
-                
-                <!-- Calves -->
-                <g id="calves-visual">
-                  <ellipse cx="135" cy="350" rx="10" ry="30" fill="#e5e7eb" stroke="#6b7280" stroke-width="2"/>
-                  <ellipse cx="165" cy="350" rx="10" ry="30" fill="#e5e7eb" stroke="#6b7280" stroke-width="2"/>
-                  <text x="150" y="355" text-anchor="middle" font-size="10" fill="#374151">Calves</text>
-                </g>
-              </svg>
+            <div class="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/30 dark:to-purple-800/30 rounded-xl p-4 border border-purple-200 dark:border-purple-700">
+              <div class="text-center">
+                <p class="text-2xl sm:text-3xl font-bold text-purple-700 dark:text-purple-400" id="journal-total-exercises">0</p>
+                <p class="text-xs text-purple-600 dark:text-purple-400 font-semibold">Exercises</p>
+              </div>
             </div>
-            <div class="mt-6 bg-gradient-to-r from-slate-50 to-white dark:from-gray-800 dark:to-gray-700 rounded-lg p-4 border border-slate-200 dark:border-gray-600">
-              <p class="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 text-center">Color Legend</p>
-              <div class="grid grid-cols-2 gap-3">
-                <div class="flex items-center gap-2">
-                  <div class="w-4 h-4 bg-red-400 rounded-full border border-red-500"></div>
-                  <span class="text-xs font-semibold text-gray-700 dark:text-gray-300">Overworked (4+)</span>
-                </div>
-                <div class="flex items-center gap-2">
-                  <div class="w-4 h-4 bg-green-400 rounded-full border border-green-500"></div>
-                  <span class="text-xs font-semibold text-gray-700 dark:text-gray-300">Balanced (2-3)</span>
-                </div>
-                <div class="flex items-center gap-2">
-                  <div class="w-4 h-4 bg-yellow-400 rounded-full border border-yellow-500"></div>
-                  <span class="text-xs font-semibold text-gray-700 dark:text-gray-300">Underworked (1)</span>
-                </div>
-                <div class="flex items-center gap-2">
-                  <div class="w-4 h-4 bg-gray-300 dark:bg-gray-600 rounded-full border border-gray-400 dark:border-gray-500"></div>
-                  <span class="text-xs font-semibold text-gray-700 dark:text-gray-300">Neglected (0)</span>
-                </div>
+            <div class="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/30 rounded-xl p-4 border border-green-200 dark:border-green-700">
+              <div class="text-center">
+                <p class="text-2xl sm:text-3xl font-bold text-green-700 dark:text-green-400" id="journal-total-sets">0</p>
+                <p class="text-xs text-green-600 dark:text-green-400 font-semibold">Total Sets</p>
+              </div>
+            </div>
+            <div class="bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/30 dark:to-amber-800/30 rounded-xl p-4 border border-amber-200 dark:border-amber-700">
+              <div class="text-center">
+                <p class="text-2xl sm:text-3xl font-bold text-amber-700 dark:text-amber-400" id="journal-total-volume">0</p>
+                <p class="text-xs text-amber-600 dark:text-amber-400 font-semibold">Total Volume</p>
               </div>
             </div>
           </div>
 
-          <!-- Right: Body Parts List -->
-          <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md border-2 border-slate-200 dark:border-gray-700 p-6 hover:shadow-lg transition-all">
-            <div class="flex items-center justify-center gap-2 mb-6 pb-3 border-b-2 border-emerald-200 dark:border-emerald-700">
-              <div class="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/50 dark:to-emerald-800/50 p-2 rounded-lg border border-emerald-200 dark:border-emerald-700">
-                <svg class="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <!-- Workouts List -->
+          <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md border-2 border-slate-200 dark:border-gray-700 p-4 sm:p-6">
+            <div class="flex items-center gap-2 mb-4 pb-3 border-b-2 border-indigo-200 dark:border-indigo-700">
+              <div class="bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-900/50 dark:to-indigo-800/50 p-2 rounded-lg border border-indigo-200 dark:border-indigo-700">
+                <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                 </svg>
               </div>
-              <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Muscle Group Details</h3>
+              <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Workout History</h3>
             </div>
-            <div id="body-parts-grid" class="grid grid-cols-2 gap-4">
-              <!-- Body part cards will be inserted here by JavaScript -->
+            
+            <!-- Workouts Container -->
+            <div id="workouts-list" class="space-y-4 max-h-[600px] overflow-y-auto">
+              <!-- Workout cards will be dynamically inserted here -->
             </div>
-          </div>
 
-        </div>
-
-        <!-- Summary Stats -->
-        <div id="balance-summary" class="bg-white dark:bg-gray-800 rounded-xl shadow-md border-2 border-slate-200 dark:border-gray-700 p-6">
-          <div class="flex items-center justify-center gap-2 mb-6 pb-3 border-b-2 border-emerald-200 dark:border-emerald-700">
-            <div class="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/50 dark:to-emerald-800/50 p-2 rounded-lg border border-emerald-200 dark:border-emerald-700">
-              <svg class="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-              </svg>
-            </div>
-            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">7-Day Summary</h3>
-          </div>
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-            <div class="transform hover:scale-105 transition-transform">
-              <div class="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-4 border-2 border-red-200 shadow-sm hover:shadow-md transition-all">
-                <div id="overworked-count" class="text-3xl font-bold text-red-600 mb-2">0</div>
-                <div class="text-sm text-gray-700 font-bold">Overworked</div>
-                <div class="text-xs text-gray-600 mt-1">Need rest</div>
+            <!-- Workout Card Template -->
+            <template id="journal-workout-card-template">
+              <div class="workout-card bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-gray-700 shadow-sm transition-all">
+                <div class="p-4 sm:p-5 space-y-3">
+                  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div>
+                      <p class="journal-card-date text-sm font-bold text-gray-800 dark:text-gray-100"></p>
+                      <div class="journal-card-stats hidden mt-2 flex flex-wrap gap-2"></div>
+                    </div>
+                    <button class="journal-toggle inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/80 dark:bg-gray-900/60 text-indigo-600 dark:text-indigo-300 text-xs font-semibold border border-indigo-100 dark:border-indigo-800 shadow-sm" aria-expanded="false">
+                      <svg class="journal-toggle-icon w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                      </svg>
+                      <span class="journal-toggle-text">Show details</span>
+                    </button>
+                  </div>
+                  <div class="journal-details hidden space-y-2">
+                    <div class="routine-exercises-list space-y-2"></div>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div class="transform hover:scale-105 transition-transform">
-              <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 border-2 border-green-200 shadow-sm hover:shadow-md transition-all">
-                <div id="balanced-count" class="text-3xl font-bold text-green-600 mb-2">0</div>
-                <div class="text-sm text-gray-700 font-bold">Balanced</div>
-                <div class="text-xs text-gray-600 mt-1">Optimal</div>
-              </div>
-            </div>
-            <div class="transform hover:scale-105 transition-transform">
-              <div class="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl p-4 border-2 border-yellow-200 shadow-sm hover:shadow-md transition-all">
-                <div id="underworked-count" class="text-3xl font-bold text-yellow-600 mb-2">0</div>
-                <div class="text-sm text-gray-700 font-bold">Underworked</div>
-                <div class="text-xs text-gray-600 mt-1">Add frequency</div>
-              </div>
-            </div>
-            <div class="transform hover:scale-105 transition-transform">
-              <div class="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 border-2 border-gray-300 shadow-sm hover:shadow-md transition-all">
-                <div id="neglected-count" class="text-3xl font-bold text-gray-600 mb-2">0</div>
-                <div class="text-sm text-gray-700 font-bold">Neglected</div>
-                <div class="text-xs text-gray-600 mt-1">Not trained</div>
+            </template>
+ 
+            <!-- Empty State -->
+            <div id="journal-empty" class="hidden text-center py-12">
+              <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-8 border-2 border-dashed border-gray-300 dark:border-gray-600">
+                <svg class="w-16 h-16 mx-auto text-gray-400 dark:text-gray-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <p class="text-gray-600 dark:text-gray-400 text-lg font-semibold mb-2">No Workouts Found</p>
+                <p class="text-gray-500 dark:text-gray-500 text-sm">No workouts logged in this time period</p>
+                <a href="/repLog" class="inline-block mt-4 px-6 py-3 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all">
+                  Log a Workout
+                </a>
               </div>
             </div>
           </div>
         </div>
-        <!-- End balance-content -->
-
       </div>
-      <!-- End balance-summary -->
-      
-      </div>
-      <!-- End Balance Journal Page -->
-      
     </div>
-    <!-- End Balance Tab -->
+    <!-- End Workout Journal Tab -->
 
   </div>
 </div>
@@ -720,6 +754,92 @@
 {{ super() }}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+
+<!-- Progress Page Modules (Load in order of dependencies) -->
+<script src="{{ url_for('static', filename='modules/utils.js') }}"></script>
+<script src="{{ url_for('static', filename='modules/progressUtils.js') }}"></script>
+<script src="{{ url_for('static', filename='modules/mainLiftsTab.js') }}"></script>
+<script src="{{ url_for('static', filename='modules/recordsTab.js') }}"></script>
+<script src="{{ url_for('static', filename='modules/journalTab.js') }}"></script>
+<script src="{{ url_for('static', filename='modules/analyticsClient.js') }}"></script>
+<script src="{{ url_for('static', filename='modules/analyticsRenderer.js') }}"></script>
 <script src="{{ url_for('static', filename='viewProgress.js') }}"></script>
+<script>
+// Analytics Dashboard Integration
+$(document).ready(function() {
+    const waitForRenderer = (callback, retries = 20) => {
+        if (typeof window.AnalyticsRenderer !== 'undefined') {
+            callback(window.AnalyticsRenderer);
+        } else if (retries > 0) {
+            setTimeout(() => waitForRenderer(callback, retries - 1), 100);
+        } else {
+            console.error('AnalyticsRenderer still undefined after waiting.');
+        }
+    };
+
+    waitForRenderer((Renderer) => {
+        const ensureRange = (val) => {
+            const parsed = parseInt(val, 10);
+            return Number.isNaN(parsed) ? 7 : parsed;
+        };
+
+        let currentTimeRange = ensureRange($('#analytics-time-range').val());
+
+        // Load analytics when Analytics tab is clicked
+        $(document).on('click', '[data-tab="analytics"]', function() {
+            loadAnalyticsDashboard(currentTimeRange);
+        });
+
+        // Handle time range change
+        $('#analytics-time-range').on('change', function() {
+            currentTimeRange = ensureRange($(this).val());
+            loadAnalyticsDashboard(currentTimeRange);
+        });
+
+        // Load analytics dashboard
+        async function loadAnalyticsDashboard(days) {
+            try {
+                Renderer.showLoading();
+
+                // Fetch all analytics data
+                const analytics = await AnalyticsClient.fetchAllAnalytics(days);
+
+                // Render KPI cards
+                Renderer.renderKPICards(analytics.kpis);
+
+                // Render main charts
+                Renderer.renderVolumeByMuscle(analytics.volumeByMuscle.data);
+                Renderer.renderMuscleBalance(analytics.muscleBalance);
+
+                // Render secondary charts
+                Renderer.renderVolumeProgression(analytics.volumeProgression);
+                Renderer.renderPushPull(analytics.pushPullBalance);
+
+                // Render insights
+                Renderer.renderWeakPoints(analytics.weakPoints);
+                Renderer.renderRecentPRs(analytics.recentPRs);
+                Renderer.renderRecommendations(analytics.recommendations);
+
+                // Hide loading
+                Renderer.hideLoading();
+
+            } catch (error) {
+                console.error('Error loading analytics dashboard:', error);
+                Renderer.showError('Failed to load analytics. Please try again.');
+
+                // Retry button handler
+                $(document).on('click', '#retry-analytics', function() {
+                    loadAnalyticsDashboard(days);
+                });
+            }
+        }
+
+        // Auto-load analytics if on analytics tab
+        if ($('#analytics').hasClass('active') || !$('#analytics').hasClass('hidden')) {
+            loadAnalyticsDashboard(currentTimeRange);
+        }
+    });
+});
+</script>
 {% endblock %}
 

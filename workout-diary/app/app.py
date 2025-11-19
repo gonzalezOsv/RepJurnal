@@ -1,14 +1,21 @@
 import os
 import secrets
 from datetime import timedelta
-from flask import Flask
+from flask import Flask, jsonify, request, session, current_app
 from flask_jwt_extended import JWTManager
 from flask_login import LoginManager
+from flask_wtf.csrf import CSRFProtect, CSRFError, generate_csrf, validate_csrf
+from sqlalchemy import text
 
 from .models import db, User
 from .initialize_data_base import initialize_database
 from . import constants as constants_main
 from .logging_config import setup_logging, log_request_info
+
+csrf = CSRFProtect()
+
+
+_db_init_checked = False
 
 
 def create_app():
@@ -23,6 +30,20 @@ def create_app():
     # ========================================
     env = os.getenv('FLASK_ENV', 'development')
     app.config['ENV'] = env
+
+    global _db_init_checked
+    should_auto_init = (
+        env in ['development', 'testing'] or os.getenv('AUTO_INIT_DB', 'false').lower() == 'true'
+    )
+    if should_auto_init and os.getenv('DB_INIT_DONE', 'false').lower() != 'true' and not _db_init_checked:
+        try:
+            initialize_database()
+        except Exception as init_err:
+            print(f"⚠️  Database initialization on app startup failed: {init_err}")
+        else:
+            os.environ['DB_INIT_DONE'] = 'true'
+        finally:
+            _db_init_checked = True
     
     # ========================================
     # SECURITY CONFIGURATION - CRITICAL
@@ -147,6 +168,8 @@ def create_app():
     app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF protection
     app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=constants_main.SESSION_TIMEOUT_HOURS)
     app.config['SESSION_COOKIE_NAME'] = 'fitness_session'  # Custom cookie name
+    app.config['WTF_CSRF_TIME_LIMIT'] = 3600
+    app.config['WTF_CSRF_SSL_STRICT'] = False  # Allow local development over HTTP
     
     # Remember Me cookie security
     app.config['REMEMBER_COOKIE_SECURE'] = (env == 'production')
@@ -158,6 +181,7 @@ def create_app():
     # INITIALIZE EXTENSIONS
     # ========================================
     db.init_app(app)
+    csrf.init_app(app)
     
     # Setup logging (must be done early)
     app_logger, security_logger = setup_logging(app)
@@ -186,9 +210,117 @@ def create_app():
         flash('Please log in to access this page.', 'warning')
         return redirect(url_for('main.home'))
     
+    @app.before_request
+    def enforce_csrf_on_state_changes():
+        """
+        Enforce CSRF protection on state-changing requests that arrive via
+        JSON/fetch calls. Traditional form submissions are handled by
+        Flask-WTF's built-in validation.
+        """
+        # Skip CSRF check in testing mode or if CSRF is disabled
+        if app.config.get('TESTING') or not app.config.get('WTF_CSRF_ENABLED', True):
+            return None
+            
+        if request.method in ('GET', 'HEAD', 'OPTIONS', 'TRACE'):
+            return None
+
+        form_token = request.form.get('csrf_token')
+        if form_token:
+            try:
+                validate_csrf(form_token)
+                return None
+            except CSRFError as exc:
+                current_app.logger.warning(
+                    "CSRF validation failed (form token)",
+                    extra={'endpoint': request.endpoint, 'method': request.method, 'ip': request.remote_addr},
+                )
+                return jsonify({'error': getattr(exc, 'description', 'CSRF token missing or invalid')}), 403
+
+        token = (
+            request.headers.get('X-CSRF-Token')
+            or request.headers.get('X-CSRFToken')
+            or request.headers.get('X-XSRF-Token')
+        )
+
+        if not token and request.is_json:
+            json_payload = request.get_json(silent=True) or {}
+            token = json_payload.pop('csrf_token', None)
+
+        if token:
+            try:
+                validate_csrf(token)
+                return None
+            except CSRFError as exc:
+                current_app.logger.warning(
+                    "CSRF validation failed (header/json token)",
+                    extra={
+                        'endpoint': request.endpoint,
+                        'method': request.method,
+                        'ip': request.remote_addr,
+                    },
+                )
+                return jsonify({'error': getattr(exc, 'description', 'CSRF token missing or invalid')}), 403
+
+        current_app.logger.warning(
+            "CSRF validation failed (missing token)",
+            extra={
+                'endpoint': request.endpoint,
+                'method': request.method,
+                'ip': request.remote_addr,
+            },
+        )
+        return jsonify({'error': 'CSRF token missing or invalid'}), 403
+
+    @app.after_request
+    def set_csrf_cookie(response):
+        """
+        Store the CSRF token in a readable cookie so SPA clients can forward it
+        in the `X-CSRF-Token` header. The token remains synchronized with the
+        session.
+        """
+        try:
+            token = generate_csrf()
+            response.set_cookie(
+                'XSRF-TOKEN',
+                token,
+                secure=(env == 'production'),
+                httponly=False,
+                samesite='Strict',
+            )
+        except Exception:
+            current_app.logger.debug("Unable to set CSRF cookie on response", exc_info=True)
+        return response
+
+    @app.route('/api/csrf-token', methods=['GET'])
+    def issue_csrf_token():
+        """
+        Provide a CSRF token for SPA clients that wish to fetch it explicitly.
+        """
+        token = generate_csrf()
+        response = jsonify({'csrfToken': token})
+        response.set_cookie(
+            'XSRF-TOKEN',
+            token,
+            secure=(env == 'production'),
+            httponly=False,
+            samesite='Strict',
+        )
+        return response
+
+    @app.context_processor
+    def inject_csrf_token():
+        return {'csrf_token': lambda: generate_csrf()}
     # ========================================
     # ERROR HANDLERS
     # ========================================
+    @app.errorhandler(CSRFError)
+    def handle_csrf_error(error):
+        message = getattr(error, 'description', 'CSRF token missing or invalid')
+        if request.path.startswith('/api/'):
+            return jsonify({'error': message}), 403
+        from flask import render_template
+        return render_template('403.html', message=message), 403
+
     @app.errorhandler(404)
     def not_found_error(error):
         from flask import jsonify, request
@@ -222,6 +354,35 @@ def create_app():
             raise error
     
     # ========================================
+    # HEALTH CHECK ENDPOINT (for monitoring/load balancers)
+    # ========================================
+    @app.route('/health', methods=['GET'])
+    @app.route('/ping', methods=['GET'])
+    def health_check():
+        """
+        Health check endpoint for monitoring and load balancers.
+        Returns 200 if app and database are healthy, 503 otherwise.
+        """
+        try:
+            # Check database connectivity
+            db.session.execute(text('SELECT 1'))
+            db.session.commit()
+            
+            return jsonify({
+                'status': 'healthy',
+                'database': 'connected',
+                'service': 'fitness-tracker'
+            }), 200
+        except Exception as e:
+            current_app.logger.error(f"Health check failed: {e}", exc_info=True)
+            return jsonify({
+                'status': 'unhealthy',
+                'database': 'disconnected',
+                'service': 'fitness-tracker',
+                'error': str(e) if env == 'development' else 'Service unavailable'
+            }), 503
+    
+    # ========================================
     # REGISTER BLUEPRINTS
     # ========================================
     from .routes import main_bp, auth_bp
@@ -230,7 +391,9 @@ def create_app():
     from .routes_legal import legal_bp
     from .routes_metrics import metrics_bp
     from .routes_routines import routines_bp
-    
+    from .routes_friends import friends_bp
+    from .routes_analytics import analytics_bp
+
     app.register_blueprint(main_bp, url_prefix='/')
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(workout_bp, url_prefix='/workout')
@@ -238,7 +401,9 @@ def create_app():
     app.register_blueprint(legal_bp, url_prefix='/legal')
     app.register_blueprint(metrics_bp, url_prefix='/metrics')
     app.register_blueprint(routines_bp, url_prefix='/')
-    
+    app.register_blueprint(friends_bp, url_prefix='/friends')
+    app.register_blueprint(analytics_bp)  # Uses blueprint's own url_prefix='/api/analytics'
+     
     # ========================================
     # SECURITY HEADERS
     # ========================================
@@ -246,13 +411,16 @@ def create_app():
     def set_security_headers(response):
         """Add security headers to all responses"""
         # Content Security Policy
+        # NOTE: 'unsafe-inline' is required for Tailwind CDN and inline styles/scripts
+        # For production, consider bundling dependencies locally to remove 'unsafe-inline'
+        # 'unsafe-eval' removed for better security (was only needed if using dynamic eval)
         response.headers['Content-Security-Policy'] = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://code.jquery.com; "
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com; "
+            "script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://code.jquery.com; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com https://cdnjs.cloudflare.com; "
             "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data: https:; "
-            "connect-src 'self'; "
+            "connect-src 'self' https://cdn.jsdelivr.net; "
             "frame-ancestors 'none';"
         )
         # Prevent clickjacking

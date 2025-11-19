@@ -33,6 +33,10 @@ services:
       - mariadb_data:/var/lib/mysql
       # Automatic database initialization on first startup
       - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/01-init_db.sql:ro
+      - ./scripts/body_parts_comprehensive.sql:/docker-entrypoint-initdb.d/02_body_parts_comprehensive.sql:ro
+      - ./scripts/body_parts_muscle_bridge.sql:/docker-entrypoint-initdb.d/03_body_parts_muscle_bridge.sql:ro
+      - ./scripts/muscle_mapping_schema.sql:/docker-entrypoint-initdb.d/04_muscle_mapping_schema.sql:ro
+      - ./scripts/populate_muscle_mappings.sql:/docker-entrypoint-initdb.d/05_populate_muscle_mappings.sql:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
