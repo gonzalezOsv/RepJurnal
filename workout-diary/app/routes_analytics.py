@@ -50,42 +50,51 @@ def get_kpis():
     
     try:
         # 1. Total Volume (30 days)
-        current_volume = db.session.query(
+        current_volume_result = db.session.query(
             func.sum(Exercise.sets * Exercise.reps * Exercise.weight).label('volume')
         ).filter(
             Exercise.user_id == current_user.user_id,
             Exercise.date >= start_date,
             Exercise.exercise_type == 'strength'
-        ).scalar() or 0
+        ).scalar()
+        current_volume = float(current_volume_result) if current_volume_result is not None else 0.0
         
         # Previous period for comparison
         prev_start = start_date - timedelta(days=days)
-        prev_volume = db.session.query(
+        prev_volume_result = db.session.query(
             func.sum(Exercise.sets * Exercise.reps * Exercise.weight).label('volume')
         ).filter(
             Exercise.user_id == current_user.user_id,
             Exercise.date >= prev_start,
             Exercise.date < start_date,
             Exercise.exercise_type == 'strength'
-        ).scalar() or 0
+        ).scalar()
+        prev_volume = float(prev_volume_result) if prev_volume_result is not None else 0.0
         
-        volume_change = ((current_volume - prev_volume) / prev_volume * 100) if prev_volume > 0 else 0
+        # Calculate volume change percentage
+        if prev_volume > 0:
+            volume_change = ((current_volume - prev_volume) / prev_volume) * 100
+        else:
+            volume_change = 0.0 if current_volume == 0 else 100.0  # New data = 100% increase
         
         # 2. Training Frequency
-        training_days = db.session.query(
+        training_days_result = db.session.query(
             func.count(func.distinct(Exercise.date))
         ).filter(
             Exercise.user_id == current_user.user_id,
             Exercise.date >= start_date
-        ).scalar() or 0
+        ).scalar()
+        training_days = int(training_days_result) if training_days_result is not None else 0
         
-        frequency = training_days / (days / 7) if days > 0 else 0
+        frequency = (training_days / (days / 7)) if days > 0 else 0.0
         
         # 3. Muscle Balance Score (placeholder - will be enhanced with muscle mapping)
         balance_score = calculate_muscle_balance_score(current_user.user_id, days)
+        balance_score = int(balance_score) if balance_score is not None else 50  # Default to 50 if None
         
         # 4. Weak Points Count
         weak_points = get_weak_points_count(current_user.user_id, days)
+        weak_points = int(weak_points) if weak_points is not None else 0  # Default to 0 if None
         
         return jsonify({
             'success': True,
@@ -1153,7 +1162,7 @@ def calculate_muscle_balance_score(user_id, days):
         """)
         
         result = db.session.execute(query, {'user_id': user_id, 'start_date': start_date})
-        volumes = [row[1] for row in result if row[1] is not None and row[1] > 0]
+        volumes = [float(row[1]) for row in result if row[1] is not None and row[1] > 0]
         
         if volumes and len(volumes) >= 2:
             mean_vol = statistics.mean(volumes)
@@ -1162,31 +1171,46 @@ def calculate_muscle_balance_score(user_id, days):
                 cv = (std_dev / mean_vol) * 100
                 score = max(0, min(100, 100 - cv))
                 return int(score)
+        
+        # If not enough data, return neutral score
+        if volumes and len(volumes) == 1:
+            return 50  # Single category, can't calculate balance
+        
+        # No data at all
+        return 50
     
     except Exception as e:
         current_app.logger.warning(f"BodyPartCategories not available for balance score: {e}")
         
         # Fallback to simple body parts
-        major_groups = ['Chest', 'Back', 'Shoulders', 'Legs']
-        volumes = []
-        
-        for group in major_groups:
-            vol = get_body_part_volume(user_id, group, start_date, date.today())
-            volumes.append(vol)
-        
-        if not volumes or max(volumes) == 0:
-            return 50
-        
-        mean_vol = statistics.mean(volumes)
-        if mean_vol == 0:
-            return 50
-        
-        std_dev = statistics.stdev(volumes) if len(volumes) > 1 else 0
-        cv = (std_dev / mean_vol) * 100 if mean_vol > 0 else 100
-        
-        # Convert to 0-100 score (lower CV = higher score)
-        score = max(0, min(100, 100 - cv))
-        return int(score)
+        try:
+            major_groups = ['Chest', 'Back', 'Shoulders', 'Legs']
+            volumes = []
+            
+            for group in major_groups:
+                vol = get_body_part_volume(user_id, group, start_date, date.today())
+                # Ensure vol is not None
+                volumes.append(vol if vol is not None else 0)
+            
+            # Filter out zeros and check if we have data
+            non_zero_volumes = [v for v in volumes if v > 0]
+            
+            if not non_zero_volumes or len(non_zero_volumes) < 2:
+                return 50  # Not enough data for balance calculation
+            
+            mean_vol = statistics.mean(non_zero_volumes)
+            if mean_vol == 0:
+                return 50
+            
+            std_dev = statistics.stdev(non_zero_volumes) if len(non_zero_volumes) > 1 else 0
+            cv = (std_dev / mean_vol) * 100 if mean_vol > 0 else 100
+            
+            # Convert to 0-100 score (lower CV = higher score)
+            score = max(0, min(100, 100 - cv))
+            return int(score)
+        except Exception as fallback_err:
+            current_app.logger.warning(f"Fallback balance calculation failed: {fallback_err}")
+            return 50  # Default neutral score
 
 
 def get_weak_points_count(user_id, days):
@@ -1210,20 +1234,20 @@ def get_weak_points_count(user_id, days):
         """)
         
         result = db.session.execute(query, {'user_id': user_id, 'start_date': start_date})
-        volumes = {row[0]: row[1] or 0 for row in result}
+        volumes = {row[0]: float(row[1] or 0) for row in result}
         
         # Calculate average
-        all_vols = list(volumes.values())
-        avg_volume = sum(all_vols) / len(all_vols) if all_vols else 0
+        all_vols = [v for v in volumes.values() if v is not None]
+        avg_volume = sum(all_vols) / len(all_vols) if all_vols and len(all_vols) > 0 else 0
         
         # Count categories below 80% of average (warning or critical)
         categories = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core']
         weak_count = 0
         
         for category in categories:
-            actual = volumes.get(category, 0)
+            actual = volumes.get(category, 0) or 0  # Ensure not None
             if avg_volume > 0:
-                percentage = (actual / avg_volume * 100)
+                percentage = (actual / avg_volume * 100) if avg_volume > 0 else 0
                 if percentage < 80:  # Below 80% of average = weak
                     weak_count += 1
             elif actual == 0:
