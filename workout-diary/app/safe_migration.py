@@ -97,58 +97,42 @@ PREPARE stmt FROM @query; EXECUTE stmt; DEALLOCATE PREPARE stmt;"""
                 flags=re.IGNORECASE
             )
             
-            # Split into statements, grouping prepared statement blocks together
-            # Prepared statements (SET @variable, PREPARE, EXECUTE, DEALLOCATE) must be executed together
-            statements = []
-            current_statement = ""
-            in_prepare_block = False
+            # Simple approach: split by semicolon, but preserve multi-line statements
+            # First, normalize the script - remove comments and combine lines
+            normalized_lines = []
+            for line in migration_script.split('\n'):
+                line = line.strip()
+                # Remove inline comments (-- comment)
+                if '--' in line:
+                    line = line.split('--')[0].strip()
+                if line and not line.startswith('--'):
+                    normalized_lines.append(line)
             
-            lines = migration_script.split('\n')
+            # Join all lines and split by semicolon
+            full_script = ' '.join(normalized_lines)
+            # Split by semicolon but keep the semicolon for execution
+            raw_statements = [s.strip() + ';' for s in full_script.split(';') if s.strip()]
+            
+            # Group prepared statement blocks together
+            statements = []
             i = 0
-            while i < len(lines):
-                line = lines[i].strip()
-                
-                # Skip comments and empty lines
-                if not line or line.startswith('--'):
+            while i < len(raw_statements):
+                stmt = raw_statements[i]
+                # If this is a SET @ statement, collect until DEALLOCATE
+                if 'SET @' in stmt.upper() and 'DEALLOCATE' not in stmt.upper():
+                    prepared_block = stmt
                     i += 1
-                    continue
-                
-                # Check if starting a prepared statement block
-                if 'SET @' in line.upper() and not in_prepare_block:
-                    in_prepare_block = True
-                    current_statement = line
-                    i += 1
-                    # Continue collecting until we hit DEALLOCATE
-                    while i < len(lines) and 'DEALLOCATE' not in lines[i].upper():
-                        next_line = lines[i].strip()
-                        if next_line and not next_line.startswith('--'):
-                            current_statement += " " + next_line
+                    # Collect until we find DEALLOCATE
+                    while i < len(raw_statements) and 'DEALLOCATE' not in raw_statements[i].upper():
+                        prepared_block += " " + raw_statements[i]
                         i += 1
-                    # Add the DEALLOCATE line
-                    if i < len(lines):
-                        dealloc_line = lines[i].strip()
-                        if dealloc_line and not dealloc_line.startswith('--'):
-                            current_statement += " " + dealloc_line
-                    statements.append(current_statement)
-                    current_statement = ""
-                    in_prepare_block = False
-                    i += 1
-                elif line.endswith(';'):
-                    # Regular statement ending with semicolon
-                    if in_prepare_block:
-                        current_statement += " " + line
-                        statements.append(current_statement)
-                        current_statement = ""
-                        in_prepare_block = False
-                    else:
-                        statements.append(line)
-                    i += 1
+                    # Add the DEALLOCATE statement
+                    if i < len(raw_statements):
+                        prepared_block += " " + raw_statements[i]
+                        i += 1
+                    statements.append(prepared_block)
                 else:
-                    # Continuation of a statement
-                    if current_statement:
-                        current_statement += " " + line
-                    else:
-                        current_statement = line
+                    statements.append(stmt)
                     i += 1
             
             # Execute each statement
