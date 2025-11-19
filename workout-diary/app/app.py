@@ -326,6 +326,74 @@ def create_app():
                         INDEX idx_category (anatomical_category),
                         INDEX idx_muscle_type (muscle_group_type)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """,
+                'RoutineSessions': """
+                    CREATE TABLE IF NOT EXISTS RoutineSessions (
+                        session_id INT AUTO_INCREMENT PRIMARY KEY,
+                        user_id INT NOT NULL,
+                        routine_id INT NOT NULL,
+                        started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+                        completed_at TIMESTAMP NULL,
+                        total_exercises INT NOT NULL,
+                        completed_exercises INT DEFAULT 0,
+                        is_fully_completed BOOLEAN DEFAULT FALSE,
+                        completion_percentage FLOAT DEFAULT 0.0,
+                        workout_date DATE NOT NULL,
+                        duration_minutes FLOAT NULL,
+                        FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+                        FOREIGN KEY (routine_id) REFERENCES WorkoutRoutines(routine_id) ON DELETE CASCADE,
+                        INDEX idx_user (user_id),
+                        INDEX idx_routine (routine_id),
+                        INDEX idx_workout_date (workout_date),
+                        INDEX idx_completion (is_fully_completed)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """,
+                'RoutineStats': """
+                    CREATE TABLE IF NOT EXISTS RoutineStats (
+                        stat_id INT AUTO_INCREMENT PRIMARY KEY,
+                        routine_id INT NOT NULL UNIQUE,
+                        times_copied INT NOT NULL DEFAULT 0,
+                        total_completions_all_users INT NOT NULL DEFAULT 0,
+                        active_users_count INT NOT NULL DEFAULT 0,
+                        popularity_score FLOAT NOT NULL DEFAULT 0.0,
+                        total_volume_all_users FLOAT NOT NULL DEFAULT 0.0,
+                        average_completion_time FLOAT NULL,
+                        last_used_by_anyone TIMESTAMP NULL,
+                        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        FOREIGN KEY (routine_id) REFERENCES WorkoutRoutines(routine_id) ON DELETE CASCADE,
+                        INDEX idx_routine_stats_routine_id (routine_id),
+                        INDEX idx_routine_stats_popularity (popularity_score),
+                        INDEX idx_routine_stats_times_copied (times_copied)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """,
+                'UserRoutineStats': """
+                    CREATE TABLE IF NOT EXISTS UserRoutineStats (
+                        user_routine_stat_id INT AUTO_INCREMENT PRIMARY KEY,
+                        user_id INT NOT NULL,
+                        routine_id INT NOT NULL,
+                        times_completed INT NOT NULL DEFAULT 0,
+                        last_used TIMESTAMP NULL,
+                        first_used TIMESTAMP NULL,
+                        total_volume_lifted FLOAT NOT NULL DEFAULT 0.0,
+                        total_exercises_completed INT NOT NULL DEFAULT 0,
+                        average_duration FLOAT NULL,
+                        full_completions INT NOT NULL DEFAULT 0,
+                        partial_completions INT NOT NULL DEFAULT 0,
+                        best_completion_time FLOAT NULL,
+                        personal_record_volume FLOAT NULL,
+                        current_streak INT NOT NULL DEFAULT 0,
+                        longest_streak INT NOT NULL DEFAULT 0,
+                        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+                        FOREIGN KEY (routine_id) REFERENCES WorkoutRoutines(routine_id) ON DELETE CASCADE,
+                        UNIQUE KEY unique_user_routine_stats (user_id, routine_id),
+                        INDEX idx_user_routine_stats_user_id (user_id),
+                        INDEX idx_user_routine_stats_routine_id (routine_id),
+                        INDEX idx_user_routine_stats_times_completed (times_completed),
+                        INDEX idx_user_routine_stats_last_used (last_used)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
                 """
             }
             
