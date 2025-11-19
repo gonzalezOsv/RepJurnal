@@ -22,6 +22,7 @@ DROP TABLE IF EXISTS RoutineSessions;
 DROP TABLE IF EXISTS RoutineExercises;
 DROP TABLE IF EXISTS WorkoutRoutines;
 DROP TABLE IF EXISTS TrackedExercises;
+DROP TABLE IF EXISTS Blocks;
 DROP TABLE IF EXISTS FriendRequests;
 DROP TABLE IF EXISTS Friends;
 DROP TABLE IF EXISTS Exercises;
@@ -670,6 +671,23 @@ CREATE TABLE IF NOT EXISTS Friends (
     INDEX idx_user (user_id),
     INDEX idx_friend (friend_id)
 );
+
+-- Create Blocks table
+CREATE TABLE IF NOT EXISTS Blocks (
+    block_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    blocked_user_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (blocked_user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+    
+    -- Prevent duplicate blocks
+    UNIQUE KEY unique_user_block (user_id, blocked_user_id),
+    
+    INDEX idx_user (user_id),
+    INDEX idx_blocked_user (blocked_user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Create User Workout Stats view
 CREATE OR REPLACE VIEW UserWorkoutStats AS

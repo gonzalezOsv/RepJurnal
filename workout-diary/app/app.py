@@ -181,6 +181,15 @@ def create_app():
     # INITIALIZE EXTENSIONS
     # ========================================
     db.init_app(app)
+    
+    # Ensure all tables exist (creates missing tables like Blocks)
+    # This is safe to run - it only creates tables that don't exist
+    try:
+        with app.app_context():
+            db.create_all()
+    except Exception as create_err:
+        print(f"⚠️  Warning: Could not ensure all tables exist: {create_err}")
+    
     csrf.init_app(app)
     
     # Setup logging (must be done early)
