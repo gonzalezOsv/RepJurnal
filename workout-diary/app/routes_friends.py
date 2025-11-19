@@ -56,14 +56,16 @@ def search_users():
         blocked_ids = {b[0] for b in blocked_by_me}.union({b[0] for b in blocked_me})
         
         # Search users (exclude current user and blocked users)
+        # Use MySQL-compatible LIKE (case-insensitive with utf8mb4_unicode_ci collation)
+        search_pattern = f'%{query}%'
         users = User.query.filter(
             and_(
                 User.user_id != current_user.user_id,
                 ~User.user_id.in_(blocked_ids) if blocked_ids else True,
                 or_(
-                    User.username.ilike(f'%{query}%'),
-                    User.first_name.ilike(f'%{query}%'),
-                    User.last_name.ilike(f'%{query}%')
+                    User.username.like(search_pattern),
+                    User.first_name.like(search_pattern),
+                    User.last_name.like(search_pattern)
                 )
             )
         ).limit(20).all()
@@ -92,20 +94,29 @@ def search_users():
         results = []
         for user in users:
             # Only show users with public profiles or friends
-            if user.profile_visibility == 'private' and user.user_id not in friend_ids:
+            # Handle case where profile_visibility might not exist yet
+            profile_visibility = getattr(user, 'profile_visibility', 'public')
+            if profile_visibility == 'private' and user.user_id not in friend_ids:
                 continue
                 
-            # Use serialization method to ensure consistent data minimization
-            user_data = user.to_search_dict(
-                is_friend=(user.user_id in friend_ids),
-                has_pending_request=(user.user_id in pending_ids)
-            )
+            # Serialize user data for search results
+            user_data = {
+                'user_id': user.user_id,
+                'username': user.username,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'profile_visibility': profile_visibility,
+                'bio': getattr(user, 'bio', None),
+                'profile_picture_url': getattr(user, 'profile_picture_url', None),
+                'is_friend': user.user_id in friend_ids,
+                'has_pending_request': user.user_id in pending_ids
+            }
             results.append(user_data)
         
         return jsonify({'users': results}), 200
         
     except Exception as e:
-        current_app.logger.error(f"Error searching users: {e}")
+        current_app.logger.error(f"Error searching users: {e}", exc_info=True)
         return jsonify({'error': 'Failed to search users'}), 500
 
 

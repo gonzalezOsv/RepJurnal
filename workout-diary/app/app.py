@@ -233,6 +233,64 @@ def create_app():
                             print(f"✅ User column '{col_name}' added")
                         except Exception as col_err:
                             print(f"⚠️  Could not add column '{col_name}': {col_err}")
+            
+            # Ensure critical tables exist (for data loading)
+            critical_tables = {
+                'FriendRequests': """
+                    CREATE TABLE IF NOT EXISTS FriendRequests (
+                        request_id INT AUTO_INCREMENT PRIMARY KEY,
+                        sender_id INT NOT NULL,
+                        receiver_id INT NOT NULL,
+                        status ENUM('pending', 'accepted', 'declined') DEFAULT 'pending',
+                        message TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        FOREIGN KEY (sender_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+                        FOREIGN KEY (receiver_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+                        UNIQUE KEY unique_friend_request (sender_id, receiver_id),
+                        INDEX idx_sender (sender_id),
+                        INDEX idx_receiver (receiver_id),
+                        INDEX idx_status (status)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """,
+                'Friends': """
+                    CREATE TABLE IF NOT EXISTS Friends (
+                        friendship_id INT AUTO_INCREMENT PRIMARY KEY,
+                        user_id INT NOT NULL,
+                        friend_id INT NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+                        FOREIGN KEY (friend_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+                        UNIQUE KEY unique_friendship (user_id, friend_id),
+                        INDEX idx_user (user_id),
+                        INDEX idx_friend (friend_id)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """,
+                'TrackedExercises': """
+                    CREATE TABLE IF NOT EXISTS TrackedExercises (
+                        tracked_exercise_id INT AUTO_INCREMENT PRIMARY KEY,
+                        user_id INT NOT NULL,
+                        exercise_name VARCHAR(100) NOT NULL,
+                        display_order INT DEFAULT 0,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+                        UNIQUE KEY unique_user_exercise (user_id, exercise_name),
+                        INDEX idx_user (user_id, display_order)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """
+            }
+            
+            existing_tables = inspector.get_table_names()
+            for table_name, table_sql in critical_tables.items():
+                if table_name not in existing_tables:
+                    print(f"⚠️  Table '{table_name}' missing, creating directly...")
+                    try:
+                        with db.engine.connect() as conn:
+                            conn.execute(text(table_sql))
+                            conn.commit()
+                        print(f"✅ Table '{table_name}' created")
+                    except Exception as table_err:
+                        print(f"⚠️  Could not create table '{table_name}': {table_err}")
     except Exception as create_err:
         print(f"⚠️  Warning: Could not ensure all tables exist: {create_err}")
         import traceback
@@ -487,6 +545,7 @@ def create_app():
         response.headers['Content-Security-Policy'] = (
             "default-src 'self'; "
             "script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://code.jquery.com; "
+            "script-src-elem 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://code.jquery.com; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com https://cdnjs.cloudflare.com; "
             "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data: https:; "
