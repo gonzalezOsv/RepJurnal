@@ -371,23 +371,29 @@ def login():
     """
     API endpoint for user login.
     """
-    data = request.get_json()
-    username = data.get('username')
-    password = data.get('password')
-    
-    current_app.logger.debug(f"Login API request from IP: {request.remote_addr}")
-    
-    user = auth_service.authenticate(username, password)
-    
-    if user:
-        login_user(user)
-        current_app.logger.info(f"User {user.user_id} logged in successfully via API")
-        return jsonify({'redirect_url': url_for('main.dashboard')}), 200
-    else:
-        current_app.logger.warning(f"Failed login attempt from IP: {request.remote_addr}")
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        password = data.get('password')
+        
+        current_app.logger.debug(f"Login API request from IP: {request.remote_addr}")
+        
+        user = auth_service.authenticate(username, password)
+        
+        if user:
+            login_user(user)
+            current_app.logger.info(f"User {user.user_id} logged in successfully via API")
+            return jsonify({'redirect_url': url_for('main.dashboard')}), 200
+        else:
+            current_app.logger.warning(f"Failed login attempt from IP: {request.remote_addr}")
+            return jsonify({
+                'message': 'Invalid Username or Password please try again.'
+            }), 401
+    except Exception as e:
+        current_app.logger.error(f"Error during login: {str(e)}", exc_info=True)
         return jsonify({
-            'message': 'Invalid Username or Password please try again.'
-        }), 401
+            'message': 'An error occurred during login. Please try again.'
+        }), 500
 
 
 @auth_bp.route('/check-username', methods=['POST'])

@@ -25,6 +25,7 @@ def run_safe_migration():
     """
     connection = None
     try:
+        print("🔄 [SAFE_MIGRATION] Starting safe migration (add-only, no data deletion)...")
         logger.info("Starting safe migration (add-only, no data deletion)...")
         
         # Get credentials from environment
@@ -119,16 +120,25 @@ def run_safe_migration():
                     # Continue with other statements
             
             connection.commit()
+            print(f"✅ [SAFE_MIGRATION] Safe migration completed!")
+            print(f"   - Executed: {statement_count} statements")
+            print(f"   - Errors (expected): {error_count}")
+            print(f"   - Skipped (DROP statements): {skipped_count}")
             logger.info(f"✅ Safe migration completed!")
             logger.info(f"   - Executed: {statement_count} statements")
             logger.info(f"   - Errors (expected): {error_count}")
             logger.info(f"   - Skipped (DROP statements): {skipped_count}")
             
     except pymysql.Error as db_err:
+        print(f"❌ [SAFE_MIGRATION] Database error during safe migration: {db_err}")
         logger.error(f"Database error during safe migration: {db_err}")
     except FileNotFoundError as fnf_err:
+        print(f"⚠️  [SAFE_MIGRATION] Migration script file not found: {fnf_err}")
         logger.warning(f"Migration script file not found: {fnf_err}")
     except Exception as e:
+        print(f"❌ [SAFE_MIGRATION] Unexpected error during safe migration: {e}")
+        import traceback
+        print(f"❌ [SAFE_MIGRATION] Traceback: {traceback.format_exc()}")
         logger.error(f"Unexpected error during safe migration: {e}", exc_info=True)
     finally:
         if connection:

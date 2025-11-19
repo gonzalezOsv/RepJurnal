@@ -194,10 +194,14 @@ def create_app():
     # This is safe because the migration script checks if columns/tables exist before adding
     if os.getenv('RUN_SAFE_MIGRATION', 'true').lower() == 'true':
         try:
+            print("🔄 Starting safe migration...")
             from .safe_migration import run_safe_migration
             run_safe_migration()
+            print("✅ Safe migration completed")
         except Exception as migration_err:
             print(f"⚠️  Warning: Safe migration failed: {migration_err}")
+            import traceback
+            print(f"⚠️  Migration error details: {traceback.format_exc()}")
     
     csrf.init_app(app)
     
