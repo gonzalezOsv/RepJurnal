@@ -28,7 +28,28 @@ def routines():
 def get_routines():
     """Get all routines for the current user with stats (excludes soft-deleted)"""
     try:
+        # First, check if the table exists using SQLAlchemy inspector
+        from sqlalchemy import inspect
+        inspector = None
+        try:
+            inspector = inspect(db.engine)
+        except Exception as inspect_err:
+            # If we can't inspect, that's okay - we'll try the query anyway
+            current_app.logger.debug(f"Could not inspect database: {inspect_err}")
+        
         # Check if WorkoutRoutines table exists
+        if inspector:
+            try:
+                table_names = inspector.get_table_names()
+                if 'WorkoutRoutines' not in table_names:
+                    current_app.logger.info("WorkoutRoutines table does not exist, returning empty list")
+                    return jsonify({'routines': []})
+            except Exception as check_err:
+                # If check fails, continue anyway - table might exist
+                current_app.logger.debug(f"Could not check table existence: {check_err}")
+        
+        # Try to query routines
+        routines = []
         try:
             # Use joinedload to eager load relationships for better performance
             # Handle is_deleted column gracefully (might not exist in older databases)
@@ -39,19 +60,33 @@ def get_routines():
                     .order_by(WorkoutRoutine.created_at.desc()).all()
             except Exception as filter_err:
                 # If is_deleted column doesn't exist, query without it
-                current_app.logger.warning(f"is_deleted column not found, querying without filter: {filter_err}")
-                try:
-                    routines = WorkoutRoutine.query.options(
-                        joinedload(WorkoutRoutine.imported_from_user)
-                    ).filter_by(user_id=current_user.user_id)\
-                        .order_by(WorkoutRoutine.created_at.desc()).all()
-                except Exception as query_err:
-                    # If table doesn't exist or query fails, return empty list
-                    current_app.logger.warning(f"Error querying WorkoutRoutines: {query_err}")
-                    return jsonify({'routines': []})
-        except Exception as table_err:
-            # Table might not exist yet
-            current_app.logger.warning(f"WorkoutRoutines table not available: {table_err}")
+                error_str = str(filter_err).lower()
+                if 'is_deleted' in error_str or 'unknown column' in error_str:
+                    current_app.logger.debug(f"is_deleted column not found, querying without filter: {filter_err}")
+                    try:
+                        routines = WorkoutRoutine.query.options(
+                            joinedload(WorkoutRoutine.imported_from_user)
+                        ).filter_by(user_id=current_user.user_id)\
+                            .order_by(WorkoutRoutine.created_at.desc()).all()
+                    except Exception as query_err:
+                        # If table doesn't exist or query fails, return empty list
+                        error_str = str(query_err).lower()
+                        if 'doesn\'t exist' in error_str or 'table' in error_str:
+                            current_app.logger.info(f"WorkoutRoutines table not available: {query_err}")
+                            return jsonify({'routines': []})
+                        # Re-raise if it's a different error
+                        raise
+                else:
+                    # Re-raise if it's not an is_deleted error
+                    raise
+        except Exception as query_err:
+            # If table doesn't exist or query fails, return empty list
+            error_str = str(query_err).lower()
+            if 'doesn\'t exist' in error_str or 'table' in error_str or 'no such table' in error_str:
+                current_app.logger.info(f"WorkoutRoutines table not available: {query_err}")
+                return jsonify({'routines': []})
+            # For other errors, log and return empty list to be safe
+            current_app.logger.warning(f"Unexpected error querying routines: {query_err}")
             return jsonify({'routines': []})
         
         routines_data = []
