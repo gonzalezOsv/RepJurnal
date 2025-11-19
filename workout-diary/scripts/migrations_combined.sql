@@ -720,6 +720,49 @@ LEFT JOIN MuscleGroups mg ON emm.muscle_group_id = mg.muscle_group_id
 WHERE emm.mapping_id IS NOT NULL
 GROUP BY e.workout_id, e.user_id, e.date, mg.muscle_name, mg.muscle_category, mg.muscle_region, emm.activation_level;
 
+-- View: User Muscle Balance (30-day)
+CREATE OR REPLACE VIEW UserMuscleBalance30Days AS
+SELECT 
+    e.user_id,
+    mg.muscle_category,
+    mg.muscle_region,
+    COUNT(DISTINCT e.exercise_id) as exercises_performed,
+    SUM(e.sets * COALESCE(e.reps, 0)) as total_reps,
+    SUM(e.sets * COALESCE(e.reps, 0) * COALESCE(e.weight, 0)) as total_volume,
+    COUNT(DISTINCT e.date) as days_trained,
+    AVG(emm.activation_percentage) as avg_muscle_activation
+FROM Exercises e
+LEFT JOIN StandardExercises se ON e.standard_exercise_id = se.standard_exercise_id
+LEFT JOIN ExerciseMuscleMapping emm ON se.standard_exercise_id = emm.standard_exercise_id
+LEFT JOIN MuscleGroups mg ON emm.muscle_group_id = mg.muscle_group_id
+WHERE emm.activation_level IN ('Primary', 'Secondary')
+  AND e.date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+  AND e.exercise_type = 'strength'
+GROUP BY e.user_id, mg.muscle_category, mg.muscle_region
+ORDER BY e.user_id, total_volume DESC;
+
+-- View: Exercise Effectiveness Score
+CREATE OR REPLACE VIEW ExerciseEffectivenessScore AS
+SELECT 
+    se.standard_exercise_id,
+    se.exercise_name,
+    bp.body_part_name,
+    se.is_compound,
+    COUNT(DISTINCT mg.muscle_group_id) as total_muscles_targeted,
+    COUNT(DISTINCT CASE WHEN emm.activation_level = 'Primary' THEN mg.muscle_group_id END) as primary_muscles,
+    COUNT(DISTINCT CASE WHEN emm.activation_level = 'Secondary' THEN mg.muscle_group_id END) as secondary_muscles,
+    COUNT(DISTINCT CASE WHEN emm.activation_level = 'Stabilizer' THEN mg.muscle_group_id END) as stabilizer_muscles,
+    AVG(emm.activation_percentage) as avg_activation_pct,
+    (COUNT(DISTINCT CASE WHEN emm.activation_level = 'Primary' THEN mg.muscle_group_id END) * 3 +
+     COUNT(DISTINCT CASE WHEN emm.activation_level = 'Secondary' THEN mg.muscle_group_id END) * 2 +
+     COUNT(DISTINCT CASE WHEN emm.activation_level = 'Stabilizer' THEN mg.muscle_group_id END) * 1) as effectiveness_score
+FROM StandardExercises se
+LEFT JOIN ExerciseMuscleMapping emm ON se.standard_exercise_id = emm.standard_exercise_id
+LEFT JOIN MuscleGroups mg ON emm.muscle_group_id = mg.muscle_group_id
+LEFT JOIN BodyParts bp ON se.body_part_id = bp.body_part_id
+GROUP BY se.standard_exercise_id, se.exercise_name, bp.body_part_name, se.is_compound
+ORDER BY effectiveness_score DESC;
+
 -- ===================================
 -- MIGRATION COMPLETE
 -- ===================================

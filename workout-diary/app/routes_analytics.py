@@ -122,8 +122,11 @@ def get_kpis():
         }), 200
         
     except Exception as e:
-        current_app.logger.error(f"Error fetching KPIs: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        current_app.logger.error(f"Error fetching KPIs: {str(e)}", exc_info=True)
+        return jsonify({
+            'error': 'Failed to fetch KPIs',
+            'message': str(e)
+        }), 500
 
 
 # ===================================
@@ -190,8 +193,11 @@ def muscle_balance():
         }), 200
         
     except Exception as e:
-        current_app.logger.error(f"Error fetching muscle balance: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        current_app.logger.error(f"Error fetching muscle balance: {str(e)}", exc_info=True)
+        return jsonify({
+            'error': 'Failed to fetch muscle balance',
+            'message': str(e)
+        }), 500
 
 
 # ===================================
@@ -1232,17 +1238,42 @@ def get_weak_points_count(user_id, days):
 
 def get_muscle_balance_from_view(user_id, days):
     """Get muscle balance using the UserMuscleBalance30Days view"""
-    query = text("""
-        SELECT 
-            muscle_region,
-            (total_volume / (SELECT MAX(total_volume) FROM UserMuscleBalance30Days WHERE user_id = :user_id) * 100) as balance_score
-        FROM UserMuscleBalance30Days
-        WHERE user_id = :user_id
-        ORDER BY muscle_region
-    """)
-    
-    result = db.session.execute(query, {'user_id': user_id})
-    return [{'category': row[0], 'value': int(row[1]) if row[1] else 0} for row in result]
+    try:
+        # First check if view exists and has data
+        max_volume_query = text("""
+            SELECT MAX(total_volume) as max_vol
+            FROM UserMuscleBalance30Days
+            WHERE user_id = :user_id
+        """)
+        max_result = db.session.execute(max_volume_query, {'user_id': user_id}).fetchone()
+        max_volume = max_result[0] if max_result and max_result[0] else 1  # Avoid division by zero
+        
+        query = text("""
+            SELECT 
+                COALESCE(muscle_region, 'Unknown') as muscle_region,
+                CASE 
+                    WHEN :max_vol > 0 THEN (total_volume / :max_vol * 100)
+                    ELSE 0
+                END as balance_score
+            FROM UserMuscleBalance30Days
+            WHERE user_id = :user_id
+            ORDER BY muscle_region
+        """)
+        
+        result = db.session.execute(query, {'user_id': user_id, 'max_vol': max_volume})
+        balance_data = [{'category': row[0] or 'Unknown', 'value': int(row[1]) if row[1] else 0} for row in result]
+        
+        # If no data from view, fall back to body parts
+        if not balance_data:
+            current_app.logger.warning(f"No data from UserMuscleBalance30Days view for user {user_id}, falling back to body parts")
+            start_date = date.today() - timedelta(days=days)
+            return get_body_part_balance(user_id, start_date)
+        
+        return balance_data
+    except Exception as e:
+        current_app.logger.warning(f"Error querying UserMuscleBalance30Days view: {e}, falling back to body parts")
+        start_date = date.today() - timedelta(days=days)
+        return get_body_part_balance(user_id, start_date)
 
 
 def get_body_part_balance(user_id, start_date):
