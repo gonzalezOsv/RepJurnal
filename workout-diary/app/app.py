@@ -297,6 +297,35 @@ def create_app():
                         UNIQUE KEY unique_user_exercise (user_id, exercise_name),
                         INDEX idx_user (user_id, display_order)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """,
+                'BodyPartCategories': """
+                    CREATE TABLE IF NOT EXISTS BodyPartCategories (
+                        category_id INT AUTO_INCREMENT PRIMARY KEY,
+                        body_part_id INT NOT NULL,
+                        anatomical_category ENUM(
+                            'Chest',
+                            'Shoulders', 
+                            'Back',
+                            'Arms',
+                            'Core',
+                            'Legs',
+                            'Full Body',
+                            'Cardio'
+                        ) NOT NULL,
+                        muscle_group_type ENUM(
+                            'Push',
+                            'Pull',
+                            'Legs',
+                            'Core',
+                            'Full Body',
+                            'Cardio'
+                        ) NOT NULL,
+                        is_primary BOOLEAN DEFAULT TRUE,
+                        FOREIGN KEY (body_part_id) REFERENCES BodyParts(body_part_id) ON DELETE CASCADE,
+                        INDEX idx_body_part (body_part_id),
+                        INDEX idx_category (anatomical_category),
+                        INDEX idx_muscle_type (muscle_group_type)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
                 """
             }
             
