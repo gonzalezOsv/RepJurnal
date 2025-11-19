@@ -70,25 +70,86 @@ def run_safe_migration():
             # Remove USE statement if present (we're already connected to the right database)
             migration_script = migration_script.replace('USE fitness_tracker;', '').replace('USE fitness_tracker', '')
             
-            # Split by semicolon to get individual statements
-            # Handle multi-line statements and prepared statements
+            # Handle CREATE INDEX IF NOT EXISTS - MySQL doesn't support it, so we need to check first
+            # Replace with a pattern we can handle
+            import re
+            def fix_create_index(match):
+                index_name = match.group(1)
+                table_name = match.group(2)
+                index_def = match.group(3)
+                return f"""SET @index_exists = (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = '{table_name}'
+      AND INDEX_NAME = '{index_name}'
+);
+SET @query = IF(@index_exists = 0,
+    'CREATE INDEX {index_name} ON {table_name} {index_def}',
+    'SELECT "Index {index_name} already exists" AS message'
+);
+PREPARE stmt FROM @query; EXECUTE stmt; DEALLOCATE PREPARE stmt;"""
+            
+            # Fix CREATE INDEX IF NOT EXISTS statements
+            migration_script = re.sub(
+                r'CREATE INDEX IF NOT EXISTS (\w+) ON (\w+)\((.*?)\);',
+                fix_create_index,
+                migration_script,
+                flags=re.IGNORECASE
+            )
+            
+            # Split into statements, grouping prepared statement blocks together
+            # Prepared statements (SET @variable, PREPARE, EXECUTE, DEALLOCATE) must be executed together
             statements = []
             current_statement = ""
+            in_prepare_block = False
             
-            for line in migration_script.split('\n'):
-                line = line.strip()
-                # Skip comments
+            lines = migration_script.split('\n')
+            i = 0
+            while i < len(lines):
+                line = lines[i].strip()
+                
+                # Skip comments and empty lines
                 if not line or line.startswith('--'):
+                    i += 1
                     continue
                 
-                current_statement += line + " "
-                
-                # If line ends with semicolon, we have a complete statement
-                if line.endswith(';'):
-                    stmt = current_statement.strip()
-                    if stmt:
-                        statements.append(stmt)
+                # Check if starting a prepared statement block
+                if 'SET @' in line.upper() and not in_prepare_block:
+                    in_prepare_block = True
+                    current_statement = line
+                    i += 1
+                    # Continue collecting until we hit DEALLOCATE
+                    while i < len(lines) and 'DEALLOCATE' not in lines[i].upper():
+                        next_line = lines[i].strip()
+                        if next_line and not next_line.startswith('--'):
+                            current_statement += " " + next_line
+                        i += 1
+                    # Add the DEALLOCATE line
+                    if i < len(lines):
+                        dealloc_line = lines[i].strip()
+                        if dealloc_line and not dealloc_line.startswith('--'):
+                            current_statement += " " + dealloc_line
+                    statements.append(current_statement)
                     current_statement = ""
+                    in_prepare_block = False
+                    i += 1
+                elif line.endswith(';'):
+                    # Regular statement ending with semicolon
+                    if in_prepare_block:
+                        current_statement += " " + line
+                        statements.append(current_statement)
+                        current_statement = ""
+                        in_prepare_block = False
+                    else:
+                        statements.append(line)
+                    i += 1
+                else:
+                    # Continuation of a statement
+                    if current_statement:
+                        current_statement += " " + line
+                    else:
+                        current_statement = line
+                    i += 1
             
             # Execute each statement
             for statement in statements:
@@ -113,10 +174,10 @@ def run_safe_migration():
                     # Many errors are expected (columns already exist, etc.) - only log if it's unexpected
                     error_msg = str(sql_err).lower()
                     expected_errors = ['already exists', 'duplicate column', 'duplicate key', 'duplicate entry', 
-                                      'unknown database', 'table doesn\'t exist']
+                                      'unknown database', 'table doesn\'t exist', 'syntax']
                     if not any(expected in error_msg for expected in expected_errors):
                         logger.warning(f"Error executing statement: {sql_err}")
-                        logger.debug(f"Statement was: {statement[:100]}...")
+                        logger.debug(f"Statement was: {statement[:200]}...")
                     # Continue with other statements
             
             connection.commit()
