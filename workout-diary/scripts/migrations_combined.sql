@@ -53,6 +53,18 @@ CREATE TABLE IF NOT EXISTS Friends (
     INDEX idx_friend (friend_id)
 );
 
+CREATE TABLE IF NOT EXISTS Blocks (
+    block_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    blocked_user_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (blocked_user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+    UNIQUE KEY unique_user_block (user_id, blocked_user_id),
+    INDEX idx_user (user_id),
+    INDEX idx_blocked_user (blocked_user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 ALTER TABLE WorkoutRoutines
 ADD COLUMN IF NOT EXISTS visibility ENUM('public', 'friends_only', 'private') DEFAULT 'private';
 

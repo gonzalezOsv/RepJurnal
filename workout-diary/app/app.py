@@ -190,6 +190,15 @@ def create_app():
     except Exception as create_err:
         print(f"⚠️  Warning: Could not ensure all tables exist: {create_err}")
     
+    # Run safe migration to add missing columns and tables (no data deletion)
+    # This is safe because the migration script checks if columns/tables exist before adding
+    if os.getenv('RUN_SAFE_MIGRATION', 'true').lower() == 'true':
+        try:
+            from .safe_migration import run_safe_migration
+            run_safe_migration()
+        except Exception as migration_err:
+            print(f"⚠️  Warning: Safe migration failed: {migration_err}")
+    
     csrf.init_app(app)
     
     # Setup logging (must be done early)
