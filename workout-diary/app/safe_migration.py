@@ -181,7 +181,8 @@ PREPARE stmt FROM @query; EXECUTE stmt; DEALLOCATE PREPARE stmt;"""
                     error_msg = str(sql_err).lower()
                     expected_errors = ['already exists', 'duplicate column', 'duplicate key', 'duplicate entry', 
                                       'unknown database', 'table doesn\'t exist', 'syntax', 'unknown column',
-                                      'foreign key constraint', 'cannot delete or update a parent row']
+                                      'foreign key constraint', 'cannot delete or update a parent row',
+                                      'deadlock', 'try restarting transaction']
                     if not any(expected in error_msg for expected in expected_errors):
                         logger.warning(f"Error executing statement: {sql_err}")
                         logger.debug(f"Statement was: {statement[:200]}...")
