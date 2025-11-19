@@ -187,9 +187,11 @@ def create_app():
     try:
         with app.app_context():
             db.create_all()
-            # Explicitly ensure Blocks table exists (critical for login)
+            # Explicitly ensure Blocks table and critical User columns exist (critical for login)
             from sqlalchemy import inspect, text
             inspector = inspect(db.engine)
+            
+            # Check and create Blocks table
             if 'Blocks' not in inspector.get_table_names():
                 print("⚠️  Blocks table missing, creating directly...")
                 with db.engine.connect() as conn:
@@ -208,6 +210,29 @@ def create_app():
                     """))
                     conn.commit()
                 print("✅ Blocks table created")
+            
+            # Check and add critical User columns if missing
+            if 'Users' in inspector.get_table_names():
+                user_columns = [col['name'] for col in inspector.get_columns('Users')]
+                critical_columns = {
+                    'profile_visibility': "ENUM('public', 'friends_only', 'private') DEFAULT 'public'",
+                    'show_stats_to_friends': 'BOOLEAN DEFAULT TRUE',
+                    'show_workouts_to_friends': 'BOOLEAN DEFAULT TRUE',
+                    'show_routines_to_public': 'BOOLEAN DEFAULT TRUE',
+                    'bio': 'TEXT',
+                    'profile_picture_url': 'VARCHAR(255)'
+                }
+                
+                for col_name, col_def in critical_columns.items():
+                    if col_name not in user_columns:
+                        print(f"⚠️  User column '{col_name}' missing, adding...")
+                        try:
+                            with db.engine.connect() as conn:
+                                conn.execute(text(f"ALTER TABLE Users ADD COLUMN {col_name} {col_def}"))
+                                conn.commit()
+                            print(f"✅ User column '{col_name}' added")
+                        except Exception as col_err:
+                            print(f"⚠️  Could not add column '{col_name}': {col_err}")
     except Exception as create_err:
         print(f"⚠️  Warning: Could not ensure all tables exist: {create_err}")
         import traceback
