@@ -373,6 +373,354 @@ SET @query = IF(@unique_exists = 0,
 PREPARE stmt FROM @query; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- ===================================
+-- 6. SEED REFERENCE DATA
+-- ===================================
+
+-- Ensure comprehensive body parts exist (idempotent)
+INSERT INTO BodyParts (body_part_name) VALUES
+    ('Chest'),
+    ('Upper Chest'),
+    ('Lower Chest'),
+    ('Shoulders'),
+    ('Front Delts'),
+    ('Side Delts'),
+    ('Rear Delts'),
+    ('Traps'),
+    ('Back'),
+    ('Lats'),
+    ('Upper Back'),
+    ('Mid Back'),
+    ('Lower Back'),
+    ('Biceps'),
+    ('Triceps'),
+    ('Forearms'),
+    ('Abs'),
+    ('Obliques'),
+    ('Core'),
+    ('Serratus'),
+    ('Legs'),
+    ('Quads'),
+    ('Hamstrings'),
+    ('Glutes'),
+    ('Calves'),
+    ('Hip Flexors'),
+    ('Adductors'),
+    ('Abductors'),
+    ('Full Body'),
+    ('Cardio'),
+    ('Neck')
+ON DUPLICATE KEY UPDATE body_part_name = VALUES(body_part_name);
+
+-- Ensure BodyPartCategories mappings exist (idempotent)
+INSERT INTO BodyPartCategories (body_part_id, anatomical_category, muscle_group_type, is_primary)
+SELECT 
+    bp.body_part_id,
+    CASE
+        WHEN bp.body_part_name IN ('Chest', 'Upper Chest', 'Lower Chest') THEN 'Chest'
+        WHEN bp.body_part_name IN ('Shoulders', 'Front Delts', 'Side Delts', 'Rear Delts', 'Traps') THEN 'Shoulders'
+        WHEN bp.body_part_name IN ('Back', 'Lats', 'Upper Back', 'Mid Back', 'Lower Back') THEN 'Back'
+        WHEN bp.body_part_name IN ('Biceps', 'Triceps', 'Forearms') THEN 'Arms'
+        WHEN bp.body_part_name IN ('Abs', 'Obliques', 'Core', 'Serratus') THEN 'Core'
+        WHEN bp.body_part_name IN ('Legs', 'Quads', 'Hamstrings', 'Glutes', 'Calves', 'Hip Flexors', 'Adductors', 'Abductors') THEN 'Legs'
+        WHEN bp.body_part_name = 'Full Body' THEN 'Full Body'
+        WHEN bp.body_part_name IN ('Cardio', 'Neck') THEN 'Cardio'
+        ELSE 'Full Body'
+    END AS anatomical_category,
+    CASE
+        WHEN bp.body_part_name IN ('Chest', 'Upper Chest', 'Lower Chest', 'Shoulders', 'Front Delts', 'Side Delts', 'Triceps') THEN 'Push'
+        WHEN bp.body_part_name IN ('Back', 'Lats', 'Upper Back', 'Mid Back', 'Lower Back', 'Rear Delts', 'Traps', 'Biceps', 'Forearms') THEN 'Pull'
+        WHEN bp.body_part_name IN ('Legs', 'Quads', 'Hamstrings', 'Glutes', 'Calves', 'Hip Flexors', 'Adductors', 'Abductors') THEN 'Legs'
+        WHEN bp.body_part_name IN ('Abs', 'Obliques', 'Core', 'Serratus') THEN 'Core'
+        WHEN bp.body_part_name = 'Full Body' THEN 'Full Body'
+        WHEN bp.body_part_name IN ('Cardio', 'Neck') THEN 'Cardio'
+        ELSE 'Full Body'
+    END AS muscle_group_type,
+    TRUE
+FROM BodyParts bp
+WHERE NOT EXISTS (
+    SELECT 1 FROM BodyPartCategories bpc 
+    WHERE bpc.body_part_id = bp.body_part_id
+)
+ON DUPLICATE KEY UPDATE
+    anatomical_category = VALUES(anatomical_category),
+    muscle_group_type = VALUES(muscle_group_type),
+    is_primary = VALUES(is_primary);
+
+-- ===================================
+-- 7. MUSCLE MAPPING SYSTEM
+-- ===================================
+
+-- Create Muscle Groups Table
+CREATE TABLE IF NOT EXISTS MuscleGroups (
+    muscle_group_id INT AUTO_INCREMENT PRIMARY KEY,
+    muscle_name VARCHAR(100) NOT NULL UNIQUE,
+    muscle_category ENUM('Upper Body', 'Lower Body', 'Core', 'Full Body') NOT NULL,
+    muscle_region VARCHAR(50),
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_category (muscle_category),
+    INDEX idx_region (muscle_region),
+    INDEX idx_name (muscle_name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Create Exercise-Muscle Mapping Table
+CREATE TABLE IF NOT EXISTS ExerciseMuscleMapping (
+    mapping_id INT AUTO_INCREMENT PRIMARY KEY,
+    standard_exercise_id INT NOT NULL,
+    muscle_group_id INT NOT NULL,
+    activation_level ENUM('Primary', 'Secondary', 'Stabilizer') NOT NULL,
+    activation_percentage FLOAT DEFAULT 0,
+    FOREIGN KEY (standard_exercise_id) REFERENCES StandardExercises(standard_exercise_id) ON DELETE CASCADE,
+    FOREIGN KEY (muscle_group_id) REFERENCES MuscleGroups(muscle_group_id) ON DELETE CASCADE,
+    UNIQUE KEY unique_exercise_muscle (standard_exercise_id, muscle_group_id),
+    INDEX idx_exercise (standard_exercise_id),
+    INDEX idx_muscle (muscle_group_id),
+    INDEX idx_activation (activation_level)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Create Custom Exercise-Muscle Mapping Table
+CREATE TABLE IF NOT EXISTS CustomExerciseMuscleMapping (
+    mapping_id INT AUTO_INCREMENT PRIMARY KEY,
+    custom_exercise_id INT NOT NULL,
+    muscle_group_id INT NOT NULL,
+    activation_level ENUM('Primary', 'Secondary', 'Stabilizer') NOT NULL,
+    FOREIGN KEY (custom_exercise_id) REFERENCES CustomExercises(custom_exercise_id) ON DELETE CASCADE,
+    FOREIGN KEY (muscle_group_id) REFERENCES MuscleGroups(muscle_group_id) ON DELETE CASCADE,
+    UNIQUE KEY unique_custom_exercise_muscle (custom_exercise_id, muscle_group_id),
+    INDEX idx_custom_exercise (custom_exercise_id),
+    INDEX idx_muscle (muscle_group_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Populate Muscle Groups (idempotent)
+INSERT IGNORE INTO MuscleGroups (muscle_name, muscle_category, muscle_region, description) VALUES
+-- CHEST
+('Pectoralis Major (Chest)', 'Upper Body', 'Chest', 'Large chest muscle responsible for arm movement and pushing'),
+('Pectoralis Minor', 'Upper Body', 'Chest', 'Small chest muscle beneath pectoralis major'),
+('Serratus Anterior', 'Upper Body', 'Chest', 'Muscle along the ribcage, aids in scapular movement'),
+-- BACK
+('Latissimus Dorsi (Lats)', 'Upper Body', 'Back', 'Large V-shaped back muscle for pulling movements'),
+('Trapezius (Traps)', 'Upper Body', 'Back', 'Upper back muscle for shoulder and neck movement'),
+('Rhomboids', 'Upper Body', 'Back', 'Mid-back muscles for scapular retraction'),
+('Erector Spinae (Lower Back)', 'Core', 'Lower Back', 'Spine stabilizers and extensors'),
+('Teres Major', 'Upper Body', 'Back', 'Assists with lat movements'),
+-- SHOULDERS
+('Anterior Deltoids (Front Delts)', 'Upper Body', 'Shoulders', 'Front shoulder muscles for pressing and raising'),
+('Lateral Deltoids (Side Delts)', 'Upper Body', 'Shoulders', 'Side shoulder muscles for lateral raises'),
+('Posterior Deltoids (Rear Delts)', 'Upper Body', 'Shoulders', 'Rear shoulder muscles for rowing and pulling'),
+('Rotator Cuff', 'Upper Body', 'Shoulders', 'Group of stabilizing shoulder muscles'),
+-- ARMS - BICEPS
+('Biceps Brachii', 'Upper Body', 'Arms', 'Front upper arm muscle for elbow flexion'),
+('Brachialis', 'Upper Body', 'Arms', 'Underneath biceps, aids in elbow flexion'),
+('Brachioradialis', 'Upper Body', 'Arms', 'Forearm muscle involved in bicep movements'),
+-- ARMS - TRICEPS
+('Triceps Brachii', 'Upper Body', 'Arms', 'Back of upper arm for elbow extension'),
+-- FOREARMS
+('Forearm Flexors', 'Upper Body', 'Forearms', 'Inside forearm muscles for grip and wrist flexion'),
+('Forearm Extensors', 'Upper Body', 'Forearms', 'Outside forearm muscles for wrist extension'),
+-- CORE / ABS
+('Rectus Abdominis (Six Pack)', 'Core', 'Abs', 'Front abdominal muscles for trunk flexion'),
+('External Obliques', 'Core', 'Abs', 'Side abdominal muscles for rotation and lateral flexion'),
+('Internal Obliques', 'Core', 'Abs', 'Deep side abdominal muscles'),
+('Transverse Abdominis', 'Core', 'Abs', 'Deepest core muscle for stability'),
+('Serratus Posterior', 'Core', 'Core', 'Back muscles assisting with breathing and stability'),
+-- LEGS - QUADRICEPS
+('Quadriceps (Quads)', 'Lower Body', 'Legs', 'Front thigh muscles for knee extension'),
+('Rectus Femoris', 'Lower Body', 'Legs', 'Quad muscle that crosses hip and knee'),
+('Vastus Lateralis', 'Lower Body', 'Legs', 'Outer quad muscle'),
+('Vastus Medialis', 'Lower Body', 'Legs', 'Inner quad muscle'),
+('Vastus Intermedius', 'Lower Body', 'Legs', 'Deep quad muscle'),
+-- LEGS - HAMSTRINGS
+('Hamstrings', 'Lower Body', 'Legs', 'Back thigh muscles for knee flexion and hip extension'),
+('Biceps Femoris', 'Lower Body', 'Legs', 'Lateral hamstring muscle'),
+('Semitendinosus', 'Lower Body', 'Legs', 'Medial hamstring muscle'),
+('Semimembranosus', 'Lower Body', 'Legs', 'Medial hamstring muscle'),
+-- LEGS - GLUTES
+('Gluteus Maximus (Glutes)', 'Lower Body', 'Glutes', 'Large butt muscle for hip extension'),
+('Gluteus Medius', 'Lower Body', 'Glutes', 'Side glute for hip abduction and stability'),
+('Gluteus Minimus', 'Lower Body', 'Glutes', 'Smallest glute muscle for hip stabilization'),
+-- LEGS - CALVES
+('Gastrocnemius (Calves)', 'Lower Body', 'Calves', 'Large calf muscle for plantar flexion'),
+('Soleus', 'Lower Body', 'Calves', 'Deep calf muscle for ankle stability'),
+-- LEGS - HIP/ADDUCTORS
+('Hip Adductors', 'Lower Body', 'Legs', 'Inner thigh muscles for leg adduction'),
+('Hip Abductors', 'Lower Body', 'Legs', 'Outer hip muscles for leg abduction'),
+('Hip Flexors (Iliopsoas)', 'Lower Body', 'Legs', 'Front hip muscles for leg raising'),
+-- FULL BODY
+('Full Body Engagement', 'Full Body', 'Full Body', 'Exercises engaging multiple muscle groups simultaneously');
+
+-- Populate Exercise-Muscle Mappings (idempotent - using INSERT IGNORE)
+-- This uses pattern matching from populate_muscle_mappings.sql
+
+-- CHEST EXERCISES - Bench Press variations
+INSERT IGNORE INTO ExerciseMuscleMapping (standard_exercise_id, muscle_group_id, activation_level, activation_percentage)
+SELECT se.standard_exercise_id, mg.muscle_group_id, 'Primary', 95
+FROM StandardExercises se, MuscleGroups mg
+WHERE se.exercise_name LIKE '%Bench Press%' AND mg.muscle_name = 'Pectoralis Major (Chest)';
+
+INSERT IGNORE INTO ExerciseMuscleMapping (standard_exercise_id, muscle_group_id, activation_level, activation_percentage)
+SELECT se.standard_exercise_id, mg.muscle_group_id, 'Primary', 80
+FROM StandardExercises se, MuscleGroups mg
+WHERE se.exercise_name LIKE '%Bench Press%' AND mg.muscle_name = 'Triceps Brachii';
+
+INSERT IGNORE INTO ExerciseMuscleMapping (standard_exercise_id, muscle_group_id, activation_level, activation_percentage)
+SELECT se.standard_exercise_id, mg.muscle_group_id, 'Primary', 75
+FROM StandardExercises se, MuscleGroups mg
+WHERE se.exercise_name LIKE '%Bench Press%' AND mg.muscle_name = 'Anterior Deltoids (Front Delts)';
+
+-- Chest Fly variations
+INSERT IGNORE INTO ExerciseMuscleMapping (standard_exercise_id, muscle_group_id, activation_level, activation_percentage)
+SELECT se.standard_exercise_id, mg.muscle_group_id, 'Primary', 90
+FROM StandardExercises se, MuscleGroups mg
+WHERE (se.exercise_name LIKE '%Fly%' OR se.exercise_name LIKE '%Flye%') AND mg.muscle_name = 'Pectoralis Major (Chest)';
+
+-- Push-ups
+INSERT IGNORE INTO ExerciseMuscleMapping (standard_exercise_id, muscle_group_id, activation_level, activation_percentage)
+SELECT se.standard_exercise_id, mg.muscle_group_id, 'Primary', 90
+FROM StandardExercises se, MuscleGroups mg
+WHERE se.exercise_name LIKE '%Push%Up%' AND mg.muscle_name = 'Pectoralis Major (Chest)';
+
+INSERT IGNORE INTO ExerciseMuscleMapping (standard_exercise_id, muscle_group_id, activation_level, activation_percentage)
+SELECT se.standard_exercise_id, mg.muscle_group_id, 'Primary', 75
+FROM StandardExercises se, MuscleGroups mg
+WHERE se.exercise_name LIKE '%Push%Up%' AND mg.muscle_name = 'Triceps Brachii';
+
+-- BACK EXERCISES - Deadlift variations
+INSERT IGNORE INTO ExerciseMuscleMapping (standard_exercise_id, muscle_group_id, activation_level, activation_percentage)
+SELECT se.standard_exercise_id, mg.muscle_group_id, 'Primary', 95
+FROM StandardExercises se, MuscleGroups mg
+WHERE se.exercise_name LIKE '%Deadlift%' AND mg.muscle_name = 'Erector Spinae (Lower Back)';
+
+INSERT IGNORE INTO ExerciseMuscleMapping (standard_exercise_id, muscle_group_id, activation_level, activation_percentage)
+SELECT se.standard_exercise_id, mg.muscle_group_id, 'Primary', 90
+FROM StandardExercises se, MuscleGroups mg
+WHERE se.exercise_name LIKE '%Deadlift%' AND mg.muscle_name = 'Gluteus Maximus (Glutes)';
+
+INSERT IGNORE INTO ExerciseMuscleMapping (standard_exercise_id, muscle_group_id, activation_level, activation_percentage)
+SELECT se.standard_exercise_id, mg.muscle_group_id, 'Primary', 85
+FROM StandardExercises se, MuscleGroups mg
+WHERE se.exercise_name LIKE '%Deadlift%' AND mg.muscle_name = 'Hamstrings';
+
+-- Pull-ups / Chin-ups
+INSERT IGNORE INTO ExerciseMuscleMapping (standard_exercise_id, muscle_group_id, activation_level, activation_percentage)
+SELECT se.standard_exercise_id, mg.muscle_group_id, 'Primary', 95
+FROM StandardExercises se, MuscleGroups mg
+WHERE (se.exercise_name LIKE '%Pull%Up%' OR se.exercise_name LIKE '%Chin%Up%') AND mg.muscle_name = 'Latissimus Dorsi (Lats)';
+
+INSERT IGNORE INTO ExerciseMuscleMapping (standard_exercise_id, muscle_group_id, activation_level, activation_percentage)
+SELECT se.standard_exercise_id, mg.muscle_group_id, 'Primary', 80
+FROM StandardExercises se, MuscleGroups mg
+WHERE (se.exercise_name LIKE '%Pull%Up%' OR se.exercise_name LIKE '%Chin%Up%') AND mg.muscle_name = 'Biceps Brachii';
+
+-- Rows (all variations)
+INSERT IGNORE INTO ExerciseMuscleMapping (standard_exercise_id, muscle_group_id, activation_level, activation_percentage)
+SELECT se.standard_exercise_id, mg.muscle_group_id, 'Primary', 90
+FROM StandardExercises se, MuscleGroups mg
+WHERE se.exercise_name LIKE '%Row%' AND mg.muscle_name = 'Latissimus Dorsi (Lats)';
+
+-- SHOULDER EXERCISES - Shoulder Press / Overhead Press
+INSERT IGNORE INTO ExerciseMuscleMapping (standard_exercise_id, muscle_group_id, activation_level, activation_percentage)
+SELECT se.standard_exercise_id, mg.muscle_group_id, 'Primary', 95
+FROM StandardExercises se, MuscleGroups mg
+WHERE (se.exercise_name LIKE '%Shoulder%Press%' OR se.exercise_name LIKE '%Overhead%Press%' OR se.exercise_name LIKE '%Military%Press%') 
+  AND mg.muscle_name = 'Anterior Deltoids (Front Delts)';
+
+-- Lateral Raises
+INSERT IGNORE INTO ExerciseMuscleMapping (standard_exercise_id, muscle_group_id, activation_level, activation_percentage)
+SELECT se.standard_exercise_id, mg.muscle_group_id, 'Primary', 95
+FROM StandardExercises se, MuscleGroups mg
+WHERE se.exercise_name LIKE '%Lateral%Raise%' AND mg.muscle_name = 'Lateral Deltoids (Side Delts)';
+
+-- ARM EXERCISES - Bicep Curl
+INSERT IGNORE INTO ExerciseMuscleMapping (standard_exercise_id, muscle_group_id, activation_level, activation_percentage)
+SELECT se.standard_exercise_id, mg.muscle_group_id, 'Primary', 95
+FROM StandardExercises se, MuscleGroups mg
+WHERE se.exercise_name LIKE '%Bicep%Curl%' AND mg.muscle_name = 'Biceps Brachii';
+
+-- Tricep Extension
+INSERT IGNORE INTO ExerciseMuscleMapping (standard_exercise_id, muscle_group_id, activation_level, activation_percentage)
+SELECT se.standard_exercise_id, mg.muscle_group_id, 'Primary', 95
+FROM StandardExercises se, MuscleGroups mg
+WHERE (se.exercise_name LIKE '%Tricep%Extension%' OR se.exercise_name LIKE '%Tricep%Kickback%') 
+  AND mg.muscle_name = 'Triceps Brachii';
+
+-- LEG EXERCISES - Squat (all variations)
+INSERT IGNORE INTO ExerciseMuscleMapping (standard_exercise_id, muscle_group_id, activation_level, activation_percentage)
+SELECT se.standard_exercise_id, mg.muscle_group_id, 'Primary', 95
+FROM StandardExercises se, MuscleGroups mg
+WHERE se.exercise_name LIKE '%Squat%' AND mg.muscle_name = 'Quadriceps (Quads)';
+
+INSERT IGNORE INTO ExerciseMuscleMapping (standard_exercise_id, muscle_group_id, activation_level, activation_percentage)
+SELECT se.standard_exercise_id, mg.muscle_group_id, 'Primary', 85
+FROM StandardExercises se, MuscleGroups mg
+WHERE se.exercise_name LIKE '%Squat%' AND mg.muscle_name = 'Gluteus Maximus (Glutes)';
+
+-- Leg Extension
+INSERT IGNORE INTO ExerciseMuscleMapping (standard_exercise_id, muscle_group_id, activation_level, activation_percentage)
+SELECT se.standard_exercise_id, mg.muscle_group_id, 'Primary', 95
+FROM StandardExercises se, MuscleGroups mg
+WHERE se.exercise_name LIKE '%Leg%Extension%' AND mg.muscle_name = 'Quadriceps (Quads)';
+
+-- Leg Curl
+INSERT IGNORE INTO ExerciseMuscleMapping (standard_exercise_id, muscle_group_id, activation_level, activation_percentage)
+SELECT se.standard_exercise_id, mg.muscle_group_id, 'Primary', 95
+FROM StandardExercises se, MuscleGroups mg
+WHERE se.exercise_name LIKE '%Leg%Curl%' AND mg.muscle_name = 'Hamstrings';
+
+-- Calf Raise
+INSERT IGNORE INTO ExerciseMuscleMapping (standard_exercise_id, muscle_group_id, activation_level, activation_percentage)
+SELECT se.standard_exercise_id, mg.muscle_group_id, 'Primary', 95
+FROM StandardExercises se, MuscleGroups mg
+WHERE se.exercise_name LIKE '%Calf%Raise%' AND mg.muscle_name = 'Gastrocnemius (Calves)';
+
+-- CORE/ABS EXERCISES - Plank
+INSERT IGNORE INTO ExerciseMuscleMapping (standard_exercise_id, muscle_group_id, activation_level, activation_percentage)
+SELECT se.standard_exercise_id, mg.muscle_group_id, 'Primary', 95
+FROM StandardExercises se, MuscleGroups mg
+WHERE se.exercise_name LIKE '%Plank%' AND mg.muscle_name = 'Rectus Abdominis (Six Pack)';
+
+-- Crunches
+INSERT IGNORE INTO ExerciseMuscleMapping (standard_exercise_id, muscle_group_id, activation_level, activation_percentage)
+SELECT se.standard_exercise_id, mg.muscle_group_id, 'Primary', 95
+FROM StandardExercises se, MuscleGroups mg
+WHERE se.exercise_name LIKE '%Crunch%' AND mg.muscle_name = 'Rectus Abdominis (Six Pack)';
+
+-- Create Analytics Views
+CREATE OR REPLACE VIEW ExerciseMuscleSummary AS
+SELECT 
+    se.standard_exercise_id,
+    se.exercise_name,
+    bp.body_part_name,
+    mg.muscle_name,
+    mg.muscle_category,
+    mg.muscle_region,
+    emm.activation_level,
+    emm.activation_percentage
+FROM StandardExercises se
+LEFT JOIN ExerciseMuscleMapping emm ON se.standard_exercise_id = emm.standard_exercise_id
+LEFT JOIN MuscleGroups mg ON emm.muscle_group_id = mg.muscle_group_id
+LEFT JOIN BodyParts bp ON se.body_part_id = bp.body_part_id
+ORDER BY se.exercise_name, emm.activation_percentage DESC;
+
+CREATE OR REPLACE VIEW WorkoutMuscleCoverage AS
+SELECT 
+    e.workout_id,
+    e.user_id,
+    e.date,
+    mg.muscle_name,
+    mg.muscle_category,
+    mg.muscle_region,
+    emm.activation_level,
+    COUNT(DISTINCT e.exercise_id) as exercise_count,
+    AVG(emm.activation_percentage) as avg_activation_pct,
+    SUM(e.sets * e.reps * COALESCE(e.weight, 0)) as total_volume
+FROM Exercises e
+LEFT JOIN StandardExercises se ON e.standard_exercise_id = se.standard_exercise_id
+LEFT JOIN ExerciseMuscleMapping emm ON se.standard_exercise_id = emm.standard_exercise_id
+LEFT JOIN MuscleGroups mg ON emm.muscle_group_id = mg.muscle_group_id
+WHERE emm.mapping_id IS NOT NULL
+GROUP BY e.workout_id, e.user_id, e.date, mg.muscle_name, mg.muscle_category, mg.muscle_region, emm.activation_level;
+
+-- ===================================
 -- MIGRATION COMPLETE
 -- ===================================
 SELECT 'Combined migrations executed successfully!' AS status;
