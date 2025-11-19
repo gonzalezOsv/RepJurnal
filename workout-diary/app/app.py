@@ -186,13 +186,33 @@ def create_app():
     # This is safe to run - it only creates tables that don't exist
     try:
         with app.app_context():
-            db.create_all()
+            try:
+                db.create_all()
+            except Exception as create_all_err:
+                # Handle concurrent DDL errors gracefully (expected when migrations run in parallel)
+                error_str = str(create_all_err).lower()
+                if 'concurrent ddl' in error_str or 'being modified by concurrent' in error_str:
+                    print("ℹ️  Table inspection skipped due to concurrent DDL (expected during parallel migrations)")
+                else:
+                    # Re-raise if it's a different error
+                    raise
+            
             # Explicitly ensure Blocks table and critical User columns exist (critical for login)
             from sqlalchemy import inspect, text
-            inspector = inspect(db.engine)
+            try:
+                inspector = inspect(db.engine)
+            except Exception as inspect_err:
+                # Handle concurrent DDL errors during inspection
+                error_str = str(inspect_err).lower()
+                if 'concurrent ddl' in error_str or 'being modified by concurrent' in error_str:
+                    print("ℹ️  Table inspection skipped due to concurrent DDL (expected during parallel migrations)")
+                    # Skip the rest of the table checks if we can't inspect
+                    inspector = None
+                else:
+                    raise
             
-            # Check and create Blocks table
-            if 'Blocks' not in inspector.get_table_names():
+            # Check and create Blocks table (skip if inspector failed due to concurrent DDL)
+            if inspector and 'Blocks' not in inspector.get_table_names():
                 print("⚠️  Blocks table missing, creating directly...")
                 with db.engine.connect() as conn:
                     conn.execute(text("""
@@ -211,8 +231,8 @@ def create_app():
                     conn.commit()
                 print("✅ Blocks table created")
             
-            # Check and add critical User columns if missing
-            if 'Users' in inspector.get_table_names():
+            # Check and add critical User columns if missing (skip if inspector failed)
+            if inspector and 'Users' in inspector.get_table_names():
                 user_columns = [col['name'] for col in inspector.get_columns('Users')]
                 critical_columns = {
                     'profile_visibility': "ENUM('public', 'friends_only', 'private') DEFAULT 'public'",
@@ -280,17 +300,19 @@ def create_app():
                 """
             }
             
-            existing_tables = inspector.get_table_names()
-            for table_name, table_sql in critical_tables.items():
-                if table_name not in existing_tables:
-                    print(f"⚠️  Table '{table_name}' missing, creating directly...")
-                    try:
-                        with db.engine.connect() as conn:
-                            conn.execute(text(table_sql))
-                            conn.commit()
-                        print(f"✅ Table '{table_name}' created")
-                    except Exception as table_err:
-                        print(f"⚠️  Could not create table '{table_name}': {table_err}")
+            # Only check critical tables if inspector is available
+            if inspector:
+                existing_tables = inspector.get_table_names()
+                for table_name, table_sql in critical_tables.items():
+                    if table_name not in existing_tables:
+                        print(f"⚠️  Table '{table_name}' missing, creating directly...")
+                        try:
+                            with db.engine.connect() as conn:
+                                conn.execute(text(table_sql))
+                                conn.commit()
+                            print(f"✅ Table '{table_name}' created")
+                        except Exception as table_err:
+                            print(f"⚠️  Could not create table '{table_name}': {table_err}")
     except Exception as create_err:
         print(f"⚠️  Warning: Could not ensure all tables exist: {create_err}")
         import traceback
