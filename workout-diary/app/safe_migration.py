@@ -143,12 +143,31 @@ PREPARE stmt FROM @query; EXECUTE stmt; DEALLOCATE PREPARE stmt;"""
                 if not statement:
                     continue
                 
-                # Skip dangerous operations
+                # Skip dangerous operations, but allow safe ones
                 statement_upper = statement.upper()
-                dangerous_keywords = ['DROP TABLE', 'DROP DATABASE', 'TRUNCATE TABLE', 'DELETE FROM', 'DELETE ']
-                if any(dangerous in statement_upper for dangerous in dangerous_keywords):
+                
+                # Always skip these dangerous operations
+                always_skip = ['DROP TABLE', 'DROP DATABASE', 'TRUNCATE TABLE']
+                if any(dangerous in statement_upper for dangerous in always_skip):
                     skipped_count += 1
-                    logger.debug(f"Skipping potentially dangerous statement: {statement[:50]}...")
+                    logger.debug(f"Skipping dangerous statement: {statement[:50]}...")
+                    continue
+                
+                # DELETE statements: only skip if they're DELETE FROM (unconditional deletes)
+                # Allow DELETE with JOIN (safe deduplication queries)
+                if 'DELETE FROM' in statement_upper and 'JOIN' not in statement_upper:
+                    skipped_count += 1
+                    logger.debug(f"Skipping unconditional DELETE: {statement[:50]}...")
+                    continue
+                
+                # DELETE with table alias (DELETE t1 FROM ...) - these are usually safe deduplication
+                # We'll allow these since they have JOIN clauses
+                
+                # DROP INDEX: skip only if it's a direct DROP INDEX (not inside prepared statement)
+                # Prepared statements with DROP INDEX are conditional and safe
+                if 'DROP INDEX' in statement_upper and 'PREPARE' not in statement_upper and 'SET @' not in statement_upper:
+                    skipped_count += 1
+                    logger.debug(f"Skipping direct DROP INDEX: {statement[:50]}...")
                     continue
                 
                 try:
