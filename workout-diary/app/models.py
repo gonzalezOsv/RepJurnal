@@ -576,6 +576,35 @@ class Friend(db.Model):
         }
 
 
+# Block model - User blocking functionality
+class Block(db.Model):
+    __tablename__ = 'Blocks'
+    block_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('Users.user_id', ondelete='CASCADE'), nullable=False)
+    blocked_user_id = db.Column(db.Integer, db.ForeignKey('Users.user_id', ondelete='CASCADE'), nullable=False)
+    created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
+    
+    # Relationships
+    user = db.relationship('User', foreign_keys=[user_id], backref=db.backref('blocks', lazy=True))
+    blocked_user = db.relationship('User', foreign_keys=[blocked_user_id])
+    
+    # Unique constraint: each user can only block another user once
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'blocked_user_id', name='unique_user_block'),
+    )
+    
+    def to_dict(self):
+        return {
+            'block_id': self.block_id,
+            'user_id': self.user_id,
+            'blocked_user_id': self.blocked_user_id,
+            'blocked_user_username': self.blocked_user.username if self.blocked_user else None,
+            'blocked_user_first_name': self.blocked_user.first_name if self.blocked_user else None,
+            'blocked_user_last_name': self.blocked_user.last_name if self.blocked_user else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+
 # Tracked Exercise model - User's custom tracked exercises for Main Lifts tab
 class TrackedExercise(db.Model):
     __tablename__ = 'TrackedExercises'
