@@ -361,7 +361,8 @@ $(document).ready(function () {
             };
 
             const tip = recommendations[selectedExercise] || "No specific recommendations for this exercise.";
-            $("#tips-recommendation").html(`<p class="text-gray-600">${tip}</p>`);
+            // Safe: tip is from hardcoded recommendations object, not user input
+            $("#tips-recommendation").html(`<p class="text-gray-600">${RoutineUtils.escapeHtml(tip)}</p>`);
         } else {
             $("#tips-recommendation").html('<p class="text-gray-600">Select an exercise to see recommendations.</p>');
         }

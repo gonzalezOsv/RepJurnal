@@ -6,6 +6,7 @@ Provides comprehensive fitness metrics for the Progress Dashboard
 from flask import Blueprint, jsonify, request, current_app
 from flask_login import login_required, current_user
 from .models import db, Exercise, StandardExercise, Workout, BodyPart, CustomExercise
+from .rate_limiter import rate_limit_lenient
 from sqlalchemy import func, text, and_, or_
 from datetime import datetime, timedelta, date
 from math import isfinite
@@ -38,6 +39,7 @@ def clamp_query_param(name, default, min_value, max_value):
 
 @analytics_bp.route('/kpis', methods=['GET'])
 @login_required
+@rate_limit_lenient(max_requests=60, time_window_seconds=60)
 def get_kpis():
     """
     Get Key Performance Indicators for dashboard cards
@@ -130,6 +132,7 @@ def get_kpis():
 
 @analytics_bp.route('/volume-by-muscle', methods=['GET'])
 @login_required
+@rate_limit_lenient(max_requests=60, time_window_seconds=60)
 def volume_by_muscle():
     """
     Get volume breakdown by muscle groups (uses muscle mapping if available)
@@ -162,6 +165,7 @@ def volume_by_muscle():
 
 @analytics_bp.route('/muscle-balance', methods=['GET'])
 @login_required
+@rate_limit_lenient(max_requests=60, time_window_seconds=60)
 def muscle_balance():
     """
     Get muscle balance radar chart data
@@ -196,6 +200,7 @@ def muscle_balance():
 
 @analytics_bp.route('/volume-progression', methods=['GET'])
 @login_required
+@rate_limit_lenient(max_requests=60, time_window_seconds=60)
 def volume_progression():
     """
     Enhanced: Get weekly volume progression for major muscle groups using BodyPartCategories
@@ -269,6 +274,7 @@ def volume_progression():
 
 @analytics_bp.route('/push-pull-balance', methods=['GET'])
 @login_required
+@rate_limit_lenient(max_requests=60, time_window_seconds=60)
 def push_pull_balance():
     """
     Calculate Push vs Pull exercise balance using BodyPartCategories
@@ -382,6 +388,7 @@ def push_pull_balance():
 
 @analytics_bp.route('/weak-points', methods=['GET'])
 @login_required
+@rate_limit_lenient(max_requests=60, time_window_seconds=60)
 def weak_points():
     """
     Advanced: Comprehensive muscle analysis with frequency, intensity, and dynamic targets
@@ -577,6 +584,7 @@ def weak_points():
 
 @analytics_bp.route('/movement-patterns', methods=['GET'])
 @login_required
+@rate_limit_lenient(max_requests=60, time_window_seconds=60)
 def movement_patterns():
     """
     Analyze training by fundamental movement patterns:
@@ -673,6 +681,7 @@ def movement_patterns():
 
 @analytics_bp.route('/recent-prs', methods=['GET'])
 @login_required
+@rate_limit_lenient(max_requests=60, time_window_seconds=60)
 def recent_prs():
     """
     Get recent personal records (top weight for each exercise)
@@ -743,6 +752,7 @@ def recent_prs():
 
 @analytics_bp.route('/recommendations', methods=['GET'])
 @login_required
+@rate_limit_lenient(max_requests=60, time_window_seconds=60)
 def recommendations():
     """
     Enhanced AI-powered workout recommendations using advanced analytics

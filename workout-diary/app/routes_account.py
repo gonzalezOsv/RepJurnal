@@ -3,13 +3,15 @@ from datetime import datetime
 from flask import Blueprint, flash, jsonify, request
 from flask_login import current_user, login_required
 
-from .models import User, db
+from .models import User, db, Block
 from .my_utils import format_phone_number
+from .rate_limiter import rate_limit_strict
 
 account_bp = Blueprint('account', __name__)
 
 @account_bp.route('/update', methods=['POST'])
 @login_required
+@rate_limit_strict(max_requests=20, time_window_seconds=60)
 def update_account():
     """
     Update user account information.
@@ -65,19 +67,6 @@ def update_account():
         fitness_goal = request.form.get('fitness_goal', '').strip()
         user.fitness_goal = fitness_goal or None
 
-        activity_level = request.form.get('activity_level', '').strip()
-        user.activity_level = activity_level or None
-
-        body_fat_raw = request.form.get('body_fat_percentage', '').strip()
-        if body_fat_raw:
-            try:
-                user.body_fat_percentage = float(body_fat_raw)
-            except ValueError:
-                current_app.logger.warning(f"Invalid body_fat_percentage for user {current_user.user_id}: {body_fat_raw}")
-                user.body_fat_percentage = None
-        else:
-            user.body_fat_percentage = None
-
         dietary_preferences = request.form.get('dietary_preferences', '').strip()
         user.dietary_preferences = dietary_preferences or None
 
@@ -92,6 +81,71 @@ def update_account():
                 user.preferred_workout_time = None
         else:
             user.preferred_workout_time = None
+
+        # Additional Body Metrics
+        body_fat_raw = request.form.get('body_fat_percentage', '').strip()
+        if body_fat_raw:
+            try:
+                user.body_fat_percentage = float(body_fat_raw)
+            except ValueError:
+                current_app.logger.warning(f"Invalid body_fat_percentage for user {current_user.user_id}: {body_fat_raw}")
+                user.body_fat_percentage = None
+        else:
+            user.body_fat_percentage = None
+
+        activity_level = request.form.get('activity_level', '').strip()
+        user.activity_level = activity_level or None
+
+        # Goal Tracking
+        target_weight_kg_raw = request.form.get('target_weight_kg', '').strip()
+        if target_weight_kg_raw:
+            try:
+                user.target_weight_kg = float(target_weight_kg_raw)
+            except ValueError:
+                current_app.logger.warning(f"Invalid target_weight_kg for user {current_user.user_id}: {target_weight_kg_raw}")
+                user.target_weight_kg = None
+        else:
+            user.target_weight_kg = None
+
+        target_body_fat_raw = request.form.get('target_body_fat_percentage', '').strip()
+        if target_body_fat_raw:
+            try:
+                user.target_body_fat_percentage = float(target_body_fat_raw)
+            except ValueError:
+                current_app.logger.warning(f"Invalid target_body_fat_percentage for user {current_user.user_id}: {target_body_fat_raw}")
+                user.target_body_fat_percentage = None
+        else:
+            user.target_body_fat_percentage = None
+
+        weekly_weight_loss_goal_raw = request.form.get('weekly_weight_loss_goal', '').strip()
+        if weekly_weight_loss_goal_raw:
+            try:
+                user.weekly_weight_loss_goal = float(weekly_weight_loss_goal_raw)
+            except ValueError:
+                current_app.logger.warning(f"Invalid weekly_weight_loss_goal for user {current_user.user_id}: {weekly_weight_loss_goal_raw}")
+                user.weekly_weight_loss_goal = None
+        else:
+            user.weekly_weight_loss_goal = None
+
+        # Health & Medical Information
+        medical_conditions = request.form.get('medical_conditions', '').strip()
+        user.medical_conditions = medical_conditions or None
+
+        allergies = request.form.get('allergies', '').strip()
+        user.allergies = allergies or None
+
+        injuries = request.form.get('injuries', '').strip()
+        user.injuries = injuries or None
+
+        # Lifestyle Factors
+        smoking_status = request.form.get('smoking_status', '').strip()
+        user.smoking_status = smoking_status or None
+
+        alcohol_consumption = request.form.get('alcohol_consumption', '').strip()
+        user.alcohol_consumption = alcohol_consumption or None
+
+        motivation_level = request.form.get('motivation_level', '').strip()
+        user.motivation_level = motivation_level or None
         
         # Save the updated user object
         db.session.commit()
@@ -110,6 +164,7 @@ def update_account():
 
 @account_bp.route('/privacy', methods=['POST'])
 @login_required
+@rate_limit_strict(max_requests=10, time_window_seconds=60)
 def update_privacy_settings():
     """
     Update user privacy and social sharing preferences.
@@ -143,3 +198,36 @@ def update_privacy_settings():
         db.session.rollback()
         current_app.logger.error(f"Error updating privacy for user {current_user.user_id}: {str(e)}", exc_info=True)
         return jsonify({'error': 'Failed to update privacy settings'}), 500
+
+
+@account_bp.route('/blocked', methods=['GET'])
+@login_required
+@rate_limit_strict(max_requests=30, time_window_seconds=60)
+def get_blocked_users():
+    """
+    Get list of users blocked by current user.
+    """
+    from flask import current_app
+    
+    try:
+        blocks = Block.query.filter(
+            Block.user_id == current_user.user_id
+        ).all()
+        
+        blocked_users = []
+        for block in blocks:
+            blocked_user = block.blocked_user
+            blocked_users.append({
+                'user_id': blocked_user.user_id,
+                'username': blocked_user.username,
+                'first_name': blocked_user.first_name,
+                'last_name': blocked_user.last_name,
+                'block_id': block.block_id,
+                'blocked_at': block.created_at.isoformat() if block.created_at else None
+            })
+        
+        return jsonify({'blocked_users': blocked_users}), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"Error fetching blocked users for user {current_user.user_id}: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Failed to fetch blocked users'}), 500

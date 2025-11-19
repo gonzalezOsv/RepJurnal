@@ -31,17 +31,15 @@ $(document).ready(function() {
                     }
                 },
                 error: function() {
-                    console.warn('[friends.js] Failed to fetch CSRF token via fallback request');
+                    RoutineUtils.logger.warn('[friends.js] Failed to fetch CSRF token via fallback request');
                 }
             });
         } catch (error) {
-            console.warn('[friends.js] CSRF fallback error:', error);
+            RoutineUtils.logger.warn('[friends.js] CSRF fallback error:', error);
         }
         
         return window.__CSRF_TOKEN_CACHE || null;
     }
-    
-    console.log('[friends.js] CSRF-enhanced version active');
     
     // ===================================
     // PRIVACY SETTINGS ENFORCEMENT
@@ -53,7 +51,7 @@ $(document).ready(function() {
         showWorkoutsToFriends: false
     };
     
-    console.log('User Privacy Settings:', userPrivacySettings);
+    RoutineUtils.logger.debug('User Privacy Settings:', userPrivacySettings);
     
     // Initialize page
     init();
@@ -143,26 +141,30 @@ $(document).ready(function() {
             }
         });
         
-        // Remove Friend Modal handlers
+        // Friend Actions Modal handlers
         $('#confirmRemoveFriend').on('click', function() {
             confirmRemoveFriend();
         });
         
-        $('#cancelRemoveFriend').on('click', function() {
-            closeRemoveFriendModal();
+        $('#confirmBlockUser').on('click', function() {
+            confirmBlockUser();
         });
         
-        // Close remove friend modal on backdrop click
-        $(document).on('click', '#removeFriendModal', function(e) {
+        $('#cancelFriendActions').on('click', function() {
+            closeFriendActionsModal();
+        });
+        
+        // Close friend actions modal on backdrop click
+        $(document).on('click', '#friendActionsModal', function(e) {
             if (e.target === this) {
-                closeRemoveFriendModal();
+                closeFriendActionsModal();
             }
         });
         
-        // Close remove friend modal on ESC key
+        // Close friend actions modal on ESC key
         $(document).on('keydown', function(e) {
-            if (e.key === 'Escape' && !$('#removeFriendModal').hasClass('hidden')) {
-                closeRemoveFriendModal();
+            if (e.key === 'Escape' && !$('#friendActionsModal').hasClass('hidden')) {
+                closeFriendActionsModal();
             }
         });
     }
@@ -368,12 +370,13 @@ $(document).ready(function() {
                 viewFriendProfile(userId);
             });
             
-            $('.remove-friend').off('click').on('click', function() {
-                const friendshipId = $(this).data('friendship-id');
-                const username = $(this).data('username');
+            $('.friend-menu-button').off('click').on('click', function() {
+                const friendshipId = $(this).closest('.friend-card').data('friendship-id');
+                const userId = $(this).closest('.friend-card').data('user-id');
+                const username = $(this).closest('.friend-card').data('username');
                 
-                // Show remove friend modal
-                showRemoveFriendModal(friendshipId, username);
+                // Show friend actions modal
+                showFriendActionsModal(friendshipId, userId, username);
             });
         }, 100);
     }
@@ -383,10 +386,9 @@ $(document).ready(function() {
     // ===================================
     
     async function searchUsers(query) {
-        console.log('🔍 SEARCH USERS called with query:', query);
+        RoutineUtils.logger.debug('SEARCH USERS called with query:', query);
         
         try {
-            console.log('📝 Setting loading state for search...');
             $('#searchResultsContainer').html(`
                 <div class="col-span-full text-center py-8">
                     <div class="animate-spin inline-block w-8 h-8 border-4 border-current border-t-transparent rounded-full text-indigo-600"></div>
@@ -394,15 +396,13 @@ $(document).ready(function() {
                 </div>
             `);
             
-            console.log('🌐 Making API request to /friends/api/search with query:', query);
             const response = await $.get('/friends/api/search', { q: query });
-            console.log('📡 Search API response received:', response);
+            RoutineUtils.logger.debug('Search API response received:', response);
             
             const users = response.users || [];
-            console.log('👥 Users found:', users.length, users);
+            RoutineUtils.logger.debug('Users found:', users.length);
             
             if (users.length === 0) {
-                console.log('❌ No users found, showing empty state');
                 $('#searchResultsContainer').html(`
                     <div class="col-span-full text-center py-16">
                         <svg class="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -414,13 +414,11 @@ $(document).ready(function() {
                 return;
             }
             
-            console.log('🎨 Rendering search results...');
+            RoutineUtils.logger.debug('Rendering search results...');
             renderSearchResults(users);
-            console.log('✅ Search results rendered successfully');
             
         } catch (error) {
-            console.error('❌ Error searching users:', error);
-            console.error('Error details:', error.responseText, error.status);
+            RoutineUtils.logger.error('Error searching users:', error);
             $('#searchResultsContainer').html(`
                 <div class="col-span-full text-center py-12">
                     <p class="text-red-600 dark:text-red-400">Error searching users. Please try again.</p>
@@ -494,7 +492,7 @@ $(document).ready(function() {
     }
     
     async function loadFriendRequests() {
-        console.log('Loading friend requests...');
+        RoutineUtils.logger.debug('Loading friend requests...');
         
         try {
             const [incomingResponse, outgoingResponse] = await Promise.all([
@@ -510,7 +508,7 @@ $(document).ready(function() {
                 })
             ]);
             
-            console.log('Friend requests API responses:', { incomingResponse, outgoingResponse });
+            RoutineUtils.logger.debug('Friend requests loaded');
             
             const incomingRequests = incomingResponse.requests || [];
             const outgoingRequests = outgoingResponse.requests || [];
@@ -634,10 +632,9 @@ $(document).ready(function() {
     // ===================================
     
     async function sendFriendRequest(userId, username) {
-        console.log('📤 SEND FRIEND REQUEST called for user:', username, 'ID:', userId);
+        RoutineUtils.logger.debug('SEND FRIEND REQUEST called for user:', username, 'ID:', userId);
         
         try {
-            console.log('🌐 Making API request to send friend request...');
             const csrfToken = getCsrfToken();
             await $.ajax({
                 url: '/friends/api/requests/send',
@@ -654,19 +651,16 @@ $(document).ready(function() {
                 }
             });
             
-            console.log('✅ Friend request sent successfully');
             UIHelpers.showSuccess(`Friend request sent to @${username}!`);
             
             // Refresh search results
             const query = $('#userSearchInput').val().trim();
-            console.log('🔄 Refreshing search results with query:', query);
             if (query.length >= 2) {
                 searchUsers(query);
             }
             
         } catch (error) {
-            console.error('❌ Error sending friend request:', error);
-            console.error('Error details:', error.responseText, error.status);
+            RoutineUtils.logger.error('Error sending friend request:', error);
             const errorMsg = error.responseJSON?.error || 'Failed to send friend request';
             UIHelpers.showError(errorMsg);
         }
@@ -747,46 +741,80 @@ $(document).ready(function() {
     // FRIEND MANAGEMENT
     // ===================================
     
-    // Store current removal data
-    let pendingRemoval = {
+    // Store current action data
+    let pendingAction = {
         friendshipId: null,
+        userId: null,
         username: null
     };
     
-    // Show remove friend confirmation modal
-    function showRemoveFriendModal(friendshipId, username) {
-        pendingRemoval.friendshipId = friendshipId;
-        pendingRemoval.username = username;
+    // Show friend actions modal
+    function showFriendActionsModal(friendshipId, userId, username) {
+        pendingAction.friendshipId = friendshipId;
+        pendingAction.userId = userId;
+        pendingAction.username = username;
         
         // Update modal with username
-        $('#removeFriendUsername').text(`@${RoutineUtils.escapeHtml(username)}`);
+        $('#friendActionsUsername').text(`@${RoutineUtils.escapeHtml(username)}`);
         
         // Show modal with animation
-        $('#removeFriendModal').removeClass('hidden')
+        $('#friendActionsModal').removeClass('hidden')
             .css({ opacity: 0 })
             .animate({ opacity: 1 }, 200);
         
         // Focus on cancel button for accessibility
         setTimeout(() => {
-            $('#cancelRemoveFriend').focus();
+            $('#cancelFriendActions').focus();
         }, 100);
     }
     
-    // Close remove friend modal
-    function closeRemoveFriendModal() {
-        $('#removeFriendModal').animate({ opacity: 0 }, 200, function() {
+    // Close friend actions modal
+    function closeFriendActionsModal() {
+        $('#friendActionsModal').animate({ opacity: 0 }, 200, function() {
             $(this).addClass('hidden');
         });
-        pendingRemoval.friendshipId = null;
-        pendingRemoval.username = null;
+        pendingAction.friendshipId = null;
+        pendingAction.userId = null;
+        pendingAction.username = null;
     }
     
     // Confirm remove friend
     function confirmRemoveFriend() {
-        if (pendingRemoval.friendshipId) {
-            const friendshipId = pendingRemoval.friendshipId;
-            closeRemoveFriendModal();
+        if (pendingAction.friendshipId) {
+            const friendshipId = pendingAction.friendshipId;
+            closeFriendActionsModal();
             removeFriend(friendshipId);
+        }
+    }
+    
+    // Confirm block user
+    function confirmBlockUser() {
+        if (pendingAction.userId) {
+            const userId = pendingAction.userId;
+            closeFriendActionsModal();
+            blockUser(userId);
+        }
+    }
+    
+    async function blockUser(userId) {
+        try {
+            const csrfToken = getCsrfToken();
+            await $.ajax({
+                url: `/friends/api/block/${userId}`,
+                method: 'POST',
+                contentType: 'application/json',
+                headers: {
+                    'X-CSRFToken': csrfToken
+                }
+            });
+            
+            UIHelpers.showSuccess('User blocked successfully');
+            loadFriendsList();
+            
+        } catch (error) {
+            console.error('Error blocking user:', error);
+            const errorMessage = error.responseJSON?.error || 'Failed to block user';
+            UIHelpers.showError(errorMessage);
         }
     }
     
@@ -822,51 +850,106 @@ $(document).ready(function() {
             const response = await $.get(`/friends/api/${userId}/profile`);
             const profile = response.profile;
             
+        RoutineUtils.logger.debug('Friend profile loaded:', { hasBestLifts: profile.best_lifts?.length > 0, isFriend: profile.is_friend });
+            
             renderFriendProfile(profile);
             
         } catch (error) {
-            console.error('Error loading friend profile:', error);
+            RoutineUtils.logger.error('Error loading friend profile:', error);
             UIHelpers.showError('Failed to load profile');
         }
     }
     
     function renderFriendProfile(profile) {
-        const hasStats = profile.stats !== undefined;
+        // Check if best_lifts exists (means stats sharing is enabled and users are friends)
+        // best_lifts is undefined if user doesn't allow stats sharing or if not friends
+        // best_lifts is [] (empty array) if sharing is enabled but no data exists yet
+        const statsSharingEnabled = profile.best_lifts !== undefined;
+        const hasBestLifts = statsSharingEnabled && 
+                            Array.isArray(profile.best_lifts) && 
+                            profile.best_lifts.length > 0;
         
-        // Calculate workout streak (7-day weeks)
-        let workoutStreak = 0;
-        if (hasStats && profile.stats.last_workout_date) {
-            const lastWorkout = new Date(profile.stats.last_workout_date);
-            const today = new Date();
-            const diffTime = today - lastWorkout;
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            
-            if (diffDays <= 7) {
-                workoutStreak = Math.ceil(diffDays / 7); // Day 1-7 = Week 1, Day 8-14 = Week 2, etc.
+        // Check for recent PRs
+        const hasRecentPRs = statsSharingEnabled && 
+                           profile.recent_prs !== undefined &&
+                           Array.isArray(profile.recent_prs) && 
+                           profile.recent_prs.length > 0;
+        
+        RoutineUtils.logger.debug('Rendering friend profile', { hasBestLifts, hasRecentPRs, statsSharingEnabled });
+        
+        // Format date for display
+        function formatDate(dateStr) {
+            if (!dateStr) return 'N/A';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+        
+        // Get icon for exercise type
+        function getExerciseIcon(exerciseName) {
+            const name = exerciseName.toLowerCase();
+            if (name.includes('bench')) {
+                // Barbell icon for bench press
+                return `
+                    <svg class="w-10 h-10 sm:w-12 sm:h-12 text-blue-600 dark:text-blue-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path d="M3 12h18M6 12v-4a2 2 0 012-2h2a2 2 0 012 2v4m-6 0v4a2 2 0 002 2h2a2 2 0 002-2v-4m-6 0h6m-6 0H3m15 0h3m-3 0v-4a2 2 0 012-2h2a2 2 0 012 2v4m-6 0v4a2 2 0 01-2 2h-2a2 2 0 01-2-2v-4"/>
+                    </svg>
+                `;
+            } else if (name.includes('squat')) {
+                // Up arrow/strength icon for squat
+                return `
+                    <svg class="w-10 h-10 sm:w-12 sm:h-12 text-blue-600 dark:text-blue-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                    </svg>
+                `;
+            } else if (name.includes('deadlift')) {
+                // Bar/lifting icon for deadlift
+                return `
+                    <svg class="w-10 h-10 sm:w-12 sm:h-12 text-blue-600 dark:text-blue-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                `;
+            } else {
+                // Default weight icon
+                return `
+                    <svg class="w-10 h-10 sm:w-12 sm:h-12 text-blue-600 dark:text-blue-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+                    </svg>
+                `;
             }
         }
         
+        // Get trophy icon for PRs
+        function getPRIcon() {
+            return `
+                <svg class="w-10 h-10 sm:w-12 sm:h-12 text-green-600 dark:text-green-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+                </svg>
+            `;
+        }
+        
         const modalContent = `
-            <div class="bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm rounded-2xl sm:rounded-3xl max-w-md w-full mx-4 shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <div class="bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm rounded-2xl sm:rounded-3xl max-w-md w-full mx-4 shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden max-h-[90vh] flex flex-col">
                 <!-- Header with Name -->
-                <div class="bg-gradient-to-r from-blue-500 to-indigo-600 dark:from-blue-600 dark:to-indigo-700 px-4 sm:px-6 py-4 sm:py-5 relative">
-                    <button id="closeFriendProfile" class="absolute top-3 right-3 text-white hover:bg-white hover:bg-opacity-20 p-2 rounded-full transition-all">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="bg-gradient-to-r from-blue-500 to-indigo-600 dark:from-blue-600 dark:to-indigo-700 px-4 sm:px-6 py-3 sm:py-4 relative flex-shrink-0">
+                    <button id="closeFriendProfile" class="absolute top-2 right-2 sm:top-3 sm:right-3 text-white hover:bg-white hover:bg-opacity-20 p-1.5 sm:p-2 rounded-full transition-all">
+                        <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                         </svg>
                     </button>
                     
-                    <div class="text-center">
-                        <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-2xl sm:text-3xl mx-auto mb-3">
+                    <div class="flex items-center justify-center gap-3">
+                        <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-lg sm:text-xl flex-shrink-0">
                             ${getInitials(profile.first_name, profile.last_name)}
                         </div>
-                        <h3 class="text-xl sm:text-2xl font-bold text-white mb-1">${RoutineUtils.escapeHtml(profile.first_name)} ${RoutineUtils.escapeHtml(profile.last_name)}</h3>
-                        <p class="text-blue-100 text-sm sm:text-base">@${RoutineUtils.escapeHtml(profile.username)}</p>
+                        <div class="text-left min-w-0 flex-1">
+                            <h3 class="text-base sm:text-lg font-bold text-white truncate">${RoutineUtils.escapeHtml(profile.first_name)} ${RoutineUtils.escapeHtml(profile.last_name)}</h3>
+                            <p class="text-blue-100 text-xs sm:text-sm truncate">@${RoutineUtils.escapeHtml(profile.username)}</p>
+                        </div>
                     </div>
                 </div>
                 
-                <!-- Content -->
-                <div class="p-4 sm:p-6">
+                <!-- Content - Scrollable -->
+                <div class="p-4 sm:p-6 overflow-y-auto flex-1">
                     <!-- Bio Section -->
                     ${profile.bio ? `
                         <div class="mb-4 sm:mb-6">
@@ -876,29 +959,72 @@ $(document).ready(function() {
                         </div>
                     ` : ''}
                     
-                    ${hasStats ? `
-                        <!-- Stats Section -->
+                    ${statsSharingEnabled ? `
+                        <!-- Best Lift Stats Section -->
                         <div class="mb-4 sm:mb-6">
-                            <h5 class="text-base sm:text-lg font-bold text-slate-900 dark:text-white mb-3 sm:mb-4 text-center">Workout Stats</h5>
-                            <div class="grid grid-cols-2 gap-3 sm:gap-4">
-                                <div class="text-center bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 sm:p-4">
-                                    <p class="text-2xl sm:text-3xl font-bold text-blue-600 dark:text-blue-400">${profile.stats.total_workouts}</p>
-                                    <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-400">Workouts</p>
+                            <h5 class="text-base sm:text-lg font-bold text-slate-900 dark:text-white mb-3 sm:mb-4 text-center flex items-center justify-center gap-2">
+                                <svg class="w-5 h-5 text-amber-500 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+                                </svg>
+                                Best Lifts
+                            </h5>
+                            ${hasBestLifts ? `
+                                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                    ${profile.best_lifts.map((lift, index) => `
+                                        <div class="bg-gradient-to-r from-slate-50 to-blue-50 dark:from-slate-800/50 dark:to-blue-900/30 rounded-xl p-2 sm:p-4 border-2 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600 transition-all aspect-square flex flex-col items-center justify-center text-center min-h-0">
+                                            ${getExerciseIcon(lift.exercise_name)}
+                                            <h6 class="text-sm sm:text-base font-bold text-slate-900 dark:text-white mb-1 sm:mb-2 line-clamp-2 truncate w-full px-1">${RoutineUtils.escapeHtml(lift.exercise_name)}</h6>
+                                            <p class="text-xl sm:text-2xl font-bold text-blue-600 dark:text-blue-400 mb-0.5 sm:mb-1">${Math.round(lift.max_weight)}</p>
+                                            <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">lbs</p>
+                                        </div>
+                                    `).join('')}
                                 </div>
-                                <div class="text-center bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 sm:p-4">
-                                    <p class="text-2xl sm:text-3xl font-bold text-emerald-600 dark:text-emerald-400">${workoutStreak}</p>
-                                    <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-400">Week ${workoutStreak > 0 ? workoutStreak : 'Off'}</p>
+                            ` : `
+                                <!-- Empty State - No best lifts yet -->
+                                <div class="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-6 text-center border-2 border-slate-200 dark:border-slate-700">
+                                    <svg class="w-12 h-12 mx-auto text-slate-400 dark:text-slate-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                    </svg>
+                                    <p class="text-sm text-slate-600 dark:text-slate-400 font-semibold mb-1">No Best Lifts Yet</p>
+                                    <p class="text-xs text-slate-500 dark:text-slate-500">Start logging workouts to see personal records here</p>
                                 </div>
-                                <div class="text-center bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 sm:p-4">
-                                    <p class="text-2xl sm:text-3xl font-bold text-purple-600 dark:text-purple-400">${profile.stats.total_sets}</p>
-                                    <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-400">Total Sets</p>
-                                </div>
-                                <div class="text-center bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 sm:p-4">
-                                    <p class="text-2xl sm:text-3xl font-bold text-amber-600 dark:text-amber-400">${profile.stats.total_routines_created}</p>
-                                    <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-400">Routines</p>
+                            `}
+                        </div>
+                        
+                        ${hasRecentPRs ? `
+                            <!-- Recent PRs Section -->
+                            <div class="mb-4 sm:mb-6">
+                                <h5 class="text-base sm:text-lg font-bold text-slate-900 dark:text-white mb-3 sm:mb-4 text-center flex items-center justify-center gap-2">
+                                    <svg class="w-5 h-5 text-green-500 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                    </svg>
+                                    Recent Personal Records
+                                </h5>
+                                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                    ${profile.recent_prs.map((pr, index) => `
+                                        <div class="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/30 rounded-xl p-2 sm:p-4 border-2 border-green-200 dark:border-green-700 hover:border-green-300 dark:hover:border-green-600 transition-all aspect-square flex flex-col items-center justify-center text-center min-h-0">
+                                            ${getPRIcon()}
+                                            <h6 class="text-sm sm:text-base font-bold text-slate-900 dark:text-white mb-1 sm:mb-2 line-clamp-2 truncate w-full px-1">${RoutineUtils.escapeHtml(pr.exercise_name)}</h6>
+                                            <p class="text-xl sm:text-2xl font-bold text-green-600 dark:text-green-400 mb-0.5 sm:mb-1">${Math.round(pr.weight)}</p>
+                                            <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">lbs</p>
+                                        </div>
+                                    `).join('')}
                                 </div>
                             </div>
-                        </div>
+                        ` : statsSharingEnabled ? `
+                            <!-- Recent PRs Empty State -->
+                            <div class="mb-4 sm:mb-6">
+                                <h5 class="text-base sm:text-lg font-bold text-slate-900 dark:text-white mb-3 sm:mb-4 text-center flex items-center justify-center gap-2">
+                                    <svg class="w-5 h-5 text-green-500 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                    </svg>
+                                    Recent Personal Records
+                                </h5>
+                                <div class="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 text-center border-2 border-slate-200 dark:border-slate-700">
+                                    <p class="text-xs text-slate-500 dark:text-slate-400">No recent PRs in the last 30 days</p>
+                                </div>
+                            </div>
+                        ` : ''}
                     ` : `
                         <!-- Stats Hidden - Privacy Notice -->
                         <div class="mb-4 sm:mb-6">
@@ -911,8 +1037,10 @@ $(document).ready(function() {
                             </div>
                         </div>
                     `}
-                    
-                    <!-- Action Buttons -->
+                </div>
+                
+                <!-- Action Buttons - Fixed at bottom -->
+                <div class="p-4 sm:p-6 pt-0 flex-shrink-0 border-t border-slate-200 dark:border-slate-700">
                     <div class="space-y-3">
                         <button id="viewFriendRoutines" class="w-full px-4 py-3 sm:px-6 sm:py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold rounded-xl transition-all shadow-md hover:shadow-lg text-sm sm:text-base" data-user-id="${profile.user_id}">
                             <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -920,14 +1048,12 @@ $(document).ready(function() {
                             </svg>
                             View Routines
                         </button>
-                        ${profile.is_friend ? `
-                            <button id="viewFriendWorkouts" class="w-full px-4 py-3 sm:px-6 sm:py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold rounded-xl transition-all shadow-md hover:shadow-lg text-sm sm:text-base" data-user-id="${profile.user_id}">
-                                <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                                </svg>
-                                Recent Workouts
-                            </button>
-                        ` : ''}
+                        <button id="closeFriendProfileBottom" class="w-full px-4 py-3 sm:px-6 sm:py-3 bg-gradient-to-r from-slate-500 to-slate-600 hover:from-slate-600 hover:to-slate-700 text-white font-semibold rounded-xl transition-all shadow-md hover:shadow-lg text-sm sm:text-base">
+                            <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                            Close
+                        </button>
                     </div>
                 </div>
             </div>
@@ -937,13 +1063,10 @@ $(document).ready(function() {
         
         // Attach event listeners
         $('#closeFriendProfile').on('click', closeFriendProfile);
+        $('#closeFriendProfileBottom').on('click', closeFriendProfile);
         $('#viewFriendRoutines').on('click', function() {
             const userId = $(this).data('user-id');
             viewFriendRoutines(userId);
-        });
-        $('#viewFriendWorkouts').on('click', function() {
-            const userId = $(this).data('user-id');
-            viewFriendWorkouts(userId);
         });
     }
     
@@ -964,11 +1087,7 @@ $(document).ready(function() {
             });
             
             const routines = response.routines || [];
-            console.log('📊 Friend Routines Response:', routines);
-            console.log('📝 First Routine:', routines[0]);
-            if (routines[0]) {
-                console.log('💪 First Routine Exercises:', routines[0].exercises);
-            }
+            RoutineUtils.logger.debug('Friend routines loaded:', routines.length);
             showFriendRoutinesModal(userId, 'loaded', routines);
             
         } catch (error) {
@@ -1063,10 +1182,7 @@ $(document).ready(function() {
             `;
         } else if (state === 'loaded') {
             const routines = Array.isArray(routinesOrMessage) ? routinesOrMessage : [];
-            console.log('🎨 Rendering routines modal with:', routines.length, 'routines');
-            routines.forEach((r, idx) => {
-                console.log(`  Routine ${idx}: ${r.routine_name}, Exercises: ${r.exercises?.length || 0}`);
-            });
+            RoutineUtils.logger.debug('Rendering routines modal:', routines.length, 'routines');
             modalContent = `
                 <div class="bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm rounded-2xl sm:rounded-3xl max-w-2xl w-full mx-4 shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
                     <div class="bg-gradient-to-r from-blue-500 to-indigo-600 dark:from-blue-600 dark:to-indigo-700 px-4 sm:px-6 py-4 sm:py-5 relative">
@@ -1353,7 +1469,7 @@ $(document).ready(function() {
     
     /*
     async function loadActivityFeed() {
-        console.log('Loading activity feed...');
+        RoutineUtils.logger.debug('Loading activity feed...');
         
         // Show loading state
         $('#activityFeedContainer').html(`
@@ -1372,7 +1488,7 @@ $(document).ready(function() {
                 timeout: 10000
             });
             
-            console.log('Activity feed API response:', response);
+            RoutineUtils.logger.debug('Activity feed loaded');
             const activities = response.activities || [];
             
             if (activities.length === 0) {

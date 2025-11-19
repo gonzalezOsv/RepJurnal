@@ -17,6 +17,7 @@ $(function () {
     const heightInchesInput = $('#height_inches');
     const weightKgInput = $('#weight_kg');
     const weightLbsInput = $('#weight_lbs');
+    const targetWeightKgInput = $('#target_weight_kg');
     const preferredUnitsInput = $('#preferred_units');
 
     const saveButtonOriginalHtml = [];
@@ -80,7 +81,20 @@ $(function () {
         if (isEditMode) return;
         isEditMode = true;
 
-        fieldDisplays.addClass('hidden');
+        // Hide all field displays except username and email
+        fieldDisplays.each(function() {
+            const $display = $(this);
+            const $parent = $display.parent();
+            // Check if this display is for username or email by checking if parent contains those inputs
+            const isUsernameDisplay = $parent.find('#username').length > 0;
+            const isEmailDisplay = $parent.find('#email').length > 0;
+            
+            // Only hide if it's NOT username or email display
+            if (!isUsernameDisplay && !isEmailDisplay) {
+                $display.addClass('hidden');
+            }
+        });
+        
         editFields.removeClass('hidden');
 
         usernameInput.prop('readonly', true);
@@ -232,6 +246,7 @@ $(function () {
 
         syncHeightFromMetric();
         syncWeightFromMetric();
+        updateTargetWeightDisplay(parseFloat(targetWeightKgInput.val()));
     }
 
     function capturePrivacyState() {
@@ -401,9 +416,35 @@ $(function () {
         display.text(`${imperialPart} (${metricPart})`);
     }
 
+    function updateTargetWeightDisplay(kg) {
+        const display = $('#targetWeightDisplay');
+        if (!display.length) return;
+
+        if (!Number.isFinite(kg) || kg <= 0) {
+            display.text('Not set');
+            return;
+        }
+
+        const lbs = kg * 2.2046226218;
+        const imperialPart = `${Math.round(lbs)} lbs`;
+        const metricPart = `${kg.toFixed(1).replace(/\.0$/, '')} kg`;
+        display.text(`${imperialPart} (${metricPart})`);
+    }
+
+    function formatDateDisplay(value) {
+        if (!value) return 'Not set';
+        
+        const date = new Date(value);
+        if (isNaN(date.getTime())) return value;
+        
+        const options = { year: 'numeric', month: 'long', day: 'numeric' };
+        return date.toLocaleDateString('en-US', options);
+    }
+
     function refreshAllDisplays() {
         updateHeightDisplay(parseFloat(heightCmInput.val()));
         updateWeightDisplay(parseFloat(weightKgInput.val()));
+        updateTargetWeightDisplay(parseFloat(targetWeightKgInput.val()));
         refreshBasicFieldDisplays();
         refreshPrivacyDisplays();
     }
@@ -413,7 +454,23 @@ $(function () {
         updateSimpleDisplay('#last_name');
         updateSimpleDisplay('#phone_number');
         updateSimpleDisplay('#address', value => value || 'Not set');
-        updateSimpleDisplay('#dietary_preferences');
+        updateSimpleDisplay('#date_of_birth', value => formatDateDisplay(value));
+        updateSimpleDisplay('#gender');
+        updateSimpleDisplay('#body_fat_percentage', value => value ? `${parseFloat(value).toFixed(1)}%` : 'Not set');
+        updateSimpleDisplay('#activity_level');
+        updateSimpleDisplay('#target_body_fat_percentage', value => value ? `${parseFloat(value).toFixed(1)}%` : 'Not set');
+        updateSimpleDisplay('#weekly_weight_loss_goal', value => value ? `${parseFloat(value).toFixed(2)} kg/week` : 'Not set');
+        updateSimpleDisplay('#medical_conditions', value => value || 'Not set');
+        updateSimpleDisplay('#allergies', value => value || 'Not set');
+        updateSimpleDisplay('#injuries', value => value || 'Not set');
+        updateSimpleDisplay('#smoking_status');
+        updateSimpleDisplay('#alcohol_consumption');
+        updateSimpleDisplay('#motivation_level');
+        updateSimpleDisplay('#dietary_preferences', (value, input) => {
+            if (!value) return 'Not set';
+            const optionText = input.find('option:selected').text();
+            return optionText || value;
+        });
         updateSimpleDisplay('#fitness_goal', (value, input) => {
             if (!value) return 'Not set';
             const optionText = input.find('option:selected').text();
@@ -524,4 +581,117 @@ $(function () {
             toast.remove();
         });
     }
+
+    // ===================================
+    // BLOCKED USERS MANAGEMENT
+    // ===================================
+    
+    const blockedUsersToggle = $('#blockedUsersToggle');
+    const blockedUsersContent = $('#blockedUsersContent');
+    const blockedUsersList = $('#blockedUsersList');
+    const blockedUsersEmpty = $('#blockedUsersEmpty');
+    const blockedUsersCount = $('#blockedUsersCount');
+    const blockedUsersChevron = $('#blockedUsersChevron');
+
+    // Toggle collapsed section
+    blockedUsersToggle.on('click', function() {
+        blockedUsersContent.toggleClass('hidden');
+        blockedUsersChevron.toggleClass('rotate-180');
+    });
+
+    // Load blocked users
+    async function loadBlockedUsers() {
+        try {
+            const response = await $.get('/account/blocked');
+            const blockedUsers = response.blocked_users || [];
+            
+            updateBlockedUsersCount(blockedUsers.length);
+            
+            if (blockedUsers.length === 0) {
+                blockedUsersList.empty();
+                blockedUsersEmpty.removeClass('hidden');
+            } else {
+                blockedUsersEmpty.addClass('hidden');
+                renderBlockedUsers(blockedUsers);
+            }
+        } catch (error) {
+            console.error('Error loading blocked users:', error);
+        }
+    }
+
+    function updateBlockedUsersCount(count) {
+        const text = count === 0 ? 'Blocked Users' : `Blocked Users (${count})`;
+        blockedUsersCount.text(text);
+    }
+
+    function renderBlockedUsers(users) {
+        blockedUsersList.empty();
+        
+        users.forEach(user => {
+            const initials = (user.first_name?.[0] || '') + (user.last_name?.[0] || '') || '?';
+            const name = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username;
+            
+            const userHtml = `
+                <div class="flex items-center justify-between py-2 px-2 bg-white dark:bg-gray-700 rounded border border-slate-200 dark:border-gray-600">
+                    <div class="flex items-center gap-2 flex-1 min-w-0">
+                        <div class="w-6 h-6 rounded-full bg-slate-300 dark:bg-slate-600 flex items-center justify-center text-xs font-semibold text-slate-700 dark:text-slate-300 flex-shrink-0">
+                            ${initials}
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-xs font-medium text-slate-900 dark:text-slate-100 truncate">${name}</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 truncate">@${user.username}</p>
+                        </div>
+                    </div>
+                    <button class="unblock-user-btn ml-2 px-2 py-1 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded transition-colors" 
+                            data-user-id="${user.user_id}" 
+                            data-username="${user.username}">
+                        Unblock
+                    </button>
+                </div>
+            `;
+            
+            blockedUsersList.append(userHtml);
+        });
+
+        // Attach unblock event handlers
+        $('.unblock-user-btn').on('click', function() {
+            const userId = $(this).data('user-id');
+            const username = $(this).data('username');
+            unblockUser(userId, username);
+        });
+    }
+
+    function getCsrfToken() {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; XSRF-TOKEN=`);
+        if (parts.length === 2) {
+            return decodeURIComponent(parts.pop().split(';').shift());
+        }
+        return null;
+    }
+
+    async function unblockUser(userId, username) {
+        try {
+            const csrfToken = getCsrfToken();
+            await $.ajax({
+                url: `/friends/api/block/${userId}`,
+                method: 'DELETE',
+                contentType: 'application/json',
+                headers: {
+                    'X-CSRFToken': csrfToken
+                }
+            });
+            
+            showToast('User unblocked successfully', 'success');
+            loadBlockedUsers();
+            
+        } catch (error) {
+            console.error('Error unblocking user:', error);
+            const errorMessage = error.responseJSON?.error || 'Failed to unblock user';
+            showToast(errorMessage, 'error');
+        }
+    }
+
+    // Load blocked users on page load
+    loadBlockedUsers();
 });

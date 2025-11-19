@@ -33,7 +33,7 @@ $(document).ready(function() {
         showWorkoutsToFriends: false
     };
     
-    console.log('User Privacy Settings:', userPrivacySettings);
+    RoutineUtils.logger.debug('User Privacy Settings:', userPrivacySettings);
     
     // Helper function to show error with HTML links (for privacy messages)
     function showPrivacyError(message, duration = 8000) {
@@ -1366,8 +1366,7 @@ $(document).ready(function() {
             });
             
             routines = response.routines || [];
-            console.log('DEBUG: Loaded routines from API:', routines.length, 'routines');
-            console.log('DEBUG: Routine IDs:', routines.map(r => r.routine_id));
+            RoutineUtils.logger.debug('Loaded routines from API:', routines.length, 'routines');
             
             renderRoutines();
             detectDuplicateRoutines();
@@ -1383,7 +1382,7 @@ $(document).ready(function() {
 
     // Render routines (separates my routines from imported)
     function renderRoutines() {
-        console.log('DEBUG: renderRoutines() called with', routines.length, 'total routines');
+        RoutineUtils.logger.debug('renderRoutines() called with', routines.length, 'total routines');
         
         const myRoutinesContainer = $('#my-routines-container');
         const importedRoutinesContainer = $('#imported-routines-container');
@@ -1392,7 +1391,7 @@ $(document).ready(function() {
         const myRoutines = routines.filter(r => !r.is_imported);
         const importedRoutines = routines.filter(r => r.is_imported);
         
-        console.log('DEBUG: Separated into:', myRoutines.length, 'my routines,', importedRoutines.length, 'imported');
+        RoutineUtils.logger.debug('Separated routines:', { myRoutines: myRoutines.length, importedRoutines: importedRoutines.length });
         
         // Update count badges
         $('#myRoutinesCount').text(myRoutines.length);
@@ -2418,8 +2417,7 @@ $(document).ready(function() {
             });
             
             routines = response.routines || [];
-            console.log('DEBUG: Loaded routines from API:', routines.length, 'routines');
-            console.log('DEBUG: Routine IDs:', routines.map(r => r.routine_id));
+            RoutineUtils.logger.debug('Loaded routines from API:', routines.length, 'routines');
             
             renderRoutines();
             detectDuplicateRoutines();
@@ -2435,7 +2433,7 @@ $(document).ready(function() {
 
     // Render routines (separates my routines from imported)
     function renderRoutines() {
-        console.log('DEBUG: renderRoutines() called with', routines.length, 'total routines');
+        RoutineUtils.logger.debug('renderRoutines() called with', routines.length, 'total routines');
         
         const myRoutinesContainer = $('#my-routines-container');
         const importedRoutinesContainer = $('#imported-routines-container');
@@ -2444,7 +2442,7 @@ $(document).ready(function() {
         const myRoutines = routines.filter(r => !r.is_imported);
         const importedRoutines = routines.filter(r => r.is_imported);
         
-        console.log('DEBUG: Separated into:', myRoutines.length, 'my routines,', importedRoutines.length, 'imported');
+        RoutineUtils.logger.debug('Separated routines:', { myRoutines: myRoutines.length, importedRoutines: importedRoutines.length });
         
         // Update count badges
         $('#myRoutinesCount').text(myRoutines.length);

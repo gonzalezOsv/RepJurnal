@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request, render_template, current_app
 from flask_login import login_required, current_user
 from .models import User, db, Workout, Exercise, BodyPart, StandardExercise, CustomExercise, TrackedExercise
+from .rate_limiter import rate_limit_lenient, rate_limit_strict
 from datetime import date, timedelta, datetime
 
 from sqlalchemy import func, extract, distinct, or_
@@ -29,7 +30,7 @@ def get_recommended_volume(fitness_goal):
 @metrics_bp.route('/api/volume/')
 @login_required
 def metrics():
-    print("loading... volume")
+    current_app.logger.debug("Loading volume data")
     user = User.query.get(current_user.user_id)
 
     if not user:
@@ -48,7 +49,7 @@ def metrics():
     recommended_volumes = [recommended_volume.get(body_part, 0) for body_part in labels]
 
 
-    print("done... volume")
+    current_app.logger.debug("Volume data loaded")
 
     return render_template('metrics.html', labels=labels, actual_volumes=actual_volumes, recommended_volumes=recommended_volumes)
 
@@ -57,7 +58,7 @@ def metrics():
 @metrics_bp.route('/api/consistency/', methods=['GET'])
 @login_required
 def consistency():
-    print("loading... consistency")
+    current_app.logger.debug("Loading consistency data")
     
 
     # Get workout dates for the last 30 days
@@ -77,7 +78,7 @@ def consistency():
         else:
             break
 
-    print("done... consistency")
+    current_app.logger.debug("Consistency data loaded")
 
     return jsonify({
         "workout_count": len(workout_dates),
@@ -91,7 +92,7 @@ def consistency():
 @metrics_bp.route('/api/progression/<exercise_name>', methods=['GET'])
 @login_required
 def progression(exercise_name):
-    print("loading... progression")
+    current_app.logger.debug("Loading progression data")
 
     # Fetch progress for the given exercise (only strength exercises)
     progress = db.session.query(
@@ -104,7 +105,7 @@ def progression(exercise_name):
         Exercise.weight.isnot(None)
     ).group_by(Exercise.date).order_by(Exercise.date).all()
 
-    print("done... progression")
+    current_app.logger.debug("Progression data loaded")
 
     return jsonify({
         "dates": [p.date.strftime('%Y-%m-%d') for p in progress],
@@ -116,7 +117,7 @@ def progression(exercise_name):
 @metrics_bp.route('/api/volume-trend/', methods=['GET'])
 @login_required
 def volume_trend():
-    print("loading... volume trend")
+    current_app.logger.debug("Loading volume trend data")
     
     # Calculate weekly volume for the past 8 weeks
     past_8_weeks = date.today() - timedelta(weeks=8)
@@ -144,7 +145,7 @@ def volume_trend():
         'week'
     ).all()
     
-    print("done... volume trend")
+    current_app.logger.debug("Volume trend data loaded")
     
     # Format the response data
     formatted_data = [{
@@ -164,7 +165,7 @@ def volume_trend():
 @login_required
 def body_part_imbalance():
     try:
-        print("loading... body part imbalance")
+        current_app.logger.debug("Loading body part imbalance data")
         
         # Get data for the last 30 days by default
         end_date = datetime.now().date()
@@ -219,7 +220,7 @@ def body_part_imbalance():
             for body_part in all_body_parts
         }
 
-        print("done... body part imbalance")
+        current_app.logger.debug("Body part imbalance data loaded")
 
         return jsonify({
             'data': complete_percentages,
@@ -231,7 +232,7 @@ def body_part_imbalance():
         })
 
     except Exception as e:
-        print(f"Error in body_part_imbalance: {str(e)}")
+        current_app.logger.error(f"Error in body_part_imbalance: {str(e)}", exc_info=True)
         return jsonify({
             'error': 'An error occurred while calculating body part imbalance',
             'message': str(e)
@@ -242,7 +243,7 @@ def body_part_imbalance():
 @metrics_bp.route('/api/goal-achievement/', methods=['GET'])
 @login_required
 def goal_achievement():
-    print("loading... goal achivement")
+    current_app.logger.debug("Loading goal achievement data")
     user = User.query.get(current_user.user_id)
     fitness_goal = user.fitness_goal.lower()
     recommended_volume = get_recommended_volume(fitness_goal)
@@ -252,7 +253,7 @@ def goal_achievement():
     weekly_volume = {body_part: volume for body_part, volume in weekly_volume_list}
     achievement = {body_part: (weekly_volume.get(body_part, 0) / recommended_volume.get(body_part, 1)) * 100
                    for body_part in recommended_volume.keys()}
-    print("done... goal achivement")
+    current_app.logger.debug("Goal achievement data loaded")
     return jsonify(achievement)
 
 
@@ -262,7 +263,7 @@ def goal_achievement():
 @login_required
 def rest_efficiency():
     # Fetch rest time for the past week
-    print("loading... rest efficinecy")
+    current_app.logger.debug("Loading rest efficiency data")
     rest_times = db.session.query(
         Exercise.date,
         func.avg(Exercise.rest_time).label('avg_rest')
@@ -271,7 +272,7 @@ def rest_efficiency():
         Exercise.date >= date.today() - timedelta(days=7)
     ).group_by(Exercise.date).all()
 
-    print("done... rest efficinecy")
+    current_app.logger.debug("Rest efficiency data loaded")
 
     return jsonify({
         "dates": [r.date.strftime('%Y-%m-%d') for r in rest_times],
@@ -285,7 +286,7 @@ def rest_efficiency():
 @login_required
 def workout_diversity():
     # Fetch unique exercises performed in the last month
-    print("loading... workout diversity")
+    current_app.logger.debug("Loading workout diversity data")
     start_date = date.today() - timedelta(days=30)
     unique_exercises = db.session.query(
         Exercise.exercise_name
@@ -293,7 +294,7 @@ def workout_diversity():
         Exercise.user_id == current_user.user_id,
         Exercise.date >= start_date
     ).distinct().count()
-    print("done... workout diversity")
+    current_app.logger.debug("Workout diversity data loaded")
     return jsonify({"unique_exercises": unique_exercises})
 
 
@@ -305,7 +306,7 @@ def get_exercise_progression(exercise_name):
     Get progression data for a specific exercise (max weight over time).
     Returns dates and max weights for charting.
     """
-    print(f"loading... progression for {exercise_name}")
+    current_app.logger.debug(f"Loading progression for {exercise_name}")
     
     try:
         # Get progression data for the exercise from all sources:
@@ -352,7 +353,7 @@ def get_exercise_progression(exercise_name):
         pr_weight = max(max_weights) if max_weights else 0
         pr_date = dates[max_weights.index(pr_weight)] if max_weights else None
         
-        print(f"done... progression for {exercise_name}: {len(dates)} sessions, PR: {pr_weight}")
+        current_app.logger.debug(f"Progression for {exercise_name} loaded: {len(dates)} sessions, PR: {pr_weight}")
         
         return jsonify({
             'exercise_name': exercise_name,
@@ -367,7 +368,7 @@ def get_exercise_progression(exercise_name):
         })
         
     except Exception as e:
-        print(f"Error getting progression for {exercise_name}: {str(e)}")
+        current_app.logger.error(f"Error getting progression for {exercise_name}: {str(e)}", exc_info=True)
         return jsonify({
             'error': f'Failed to load progression data: {str(e)}',
             'exercise_name': exercise_name,
@@ -450,16 +451,27 @@ def get_tracked_exercises():
 
 @metrics_bp.route('/api/tracked-exercises', methods=['POST'])
 @login_required
+@rate_limit_strict(max_requests=20, time_window_seconds=60)
 def add_tracked_exercise():
     """
     Add a new exercise to user's tracked exercises.
     """
     try:
         data = request.get_json()
-        exercise_name = data.get('exercise_name')
+        exercise_name = data.get('exercise_name', '').strip()
         
         if not exercise_name:
             return jsonify({'error': 'Exercise name is required'}), 400
+        
+        # Validate exercise name for security (prevent XSS, SQL injection)
+        from .validators import validate_exercise_name, sanitize_input
+        is_valid, error = validate_exercise_name(exercise_name)
+        if not is_valid:
+            current_app.logger.warning(f"Invalid exercise name from user {current_user.user_id}: {error}")
+            return jsonify({'error': error}), 400
+        
+        # Sanitize exercise name
+        exercise_name = sanitize_input(exercise_name, 100, allow_special_chars=True)
         
         # Check if already tracking this exercise
         existing = TrackedExercise.query.filter_by(
@@ -500,6 +512,7 @@ def add_tracked_exercise():
 
 @metrics_bp.route('/api/tracked-exercises/<int:tracked_exercise_id>', methods=['DELETE'])
 @login_required
+@rate_limit_strict(max_requests=20, time_window_seconds=60)
 def remove_tracked_exercise(tracked_exercise_id):
     """
     Remove an exercise from user's tracked exercises.
@@ -526,6 +539,7 @@ def remove_tracked_exercise(tracked_exercise_id):
 
 @metrics_bp.route('/api/tracked-exercises/reorder', methods=['POST'])
 @login_required
+@rate_limit_strict(max_requests=20, time_window_seconds=60)
 def reorder_tracked_exercises():
     """
     Reorder user's tracked exercises.

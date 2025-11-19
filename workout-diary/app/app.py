@@ -5,6 +5,7 @@ from flask import Flask, jsonify, request, session, current_app
 from flask_jwt_extended import JWTManager
 from flask_login import LoginManager
 from flask_wtf.csrf import CSRFProtect, CSRFError, generate_csrf, validate_csrf
+from sqlalchemy import text
 
 from .models import db, User
 from .initialize_data_base import initialize_database
@@ -216,6 +217,10 @@ def create_app():
         JSON/fetch calls. Traditional form submissions are handled by
         Flask-WTF's built-in validation.
         """
+        # Skip CSRF check in testing mode or if CSRF is disabled
+        if app.config.get('TESTING') or not app.config.get('WTF_CSRF_ENABLED', True):
+            return None
+            
         if request.method in ('GET', 'HEAD', 'OPTIONS', 'TRACE'):
             return None
 
@@ -349,6 +354,35 @@ def create_app():
             raise error
     
     # ========================================
+    # HEALTH CHECK ENDPOINT (for monitoring/load balancers)
+    # ========================================
+    @app.route('/health', methods=['GET'])
+    @app.route('/ping', methods=['GET'])
+    def health_check():
+        """
+        Health check endpoint for monitoring and load balancers.
+        Returns 200 if app and database are healthy, 503 otherwise.
+        """
+        try:
+            # Check database connectivity
+            db.session.execute(text('SELECT 1'))
+            db.session.commit()
+            
+            return jsonify({
+                'status': 'healthy',
+                'database': 'connected',
+                'service': 'fitness-tracker'
+            }), 200
+        except Exception as e:
+            current_app.logger.error(f"Health check failed: {e}", exc_info=True)
+            return jsonify({
+                'status': 'unhealthy',
+                'database': 'disconnected',
+                'service': 'fitness-tracker',
+                'error': str(e) if env == 'development' else 'Service unavailable'
+            }), 503
+    
+    # ========================================
     # REGISTER BLUEPRINTS
     # ========================================
     from .routes import main_bp, auth_bp
@@ -377,9 +411,12 @@ def create_app():
     def set_security_headers(response):
         """Add security headers to all responses"""
         # Content Security Policy
+        # NOTE: 'unsafe-inline' is required for Tailwind CDN and inline styles/scripts
+        # For production, consider bundling dependencies locally to remove 'unsafe-inline'
+        # 'unsafe-eval' removed for better security (was only needed if using dynamic eval)
         response.headers['Content-Security-Policy'] = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://code.jquery.com; "
+            "script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://code.jquery.com; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com https://cdnjs.cloudflare.com; "
             "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data: https:; "

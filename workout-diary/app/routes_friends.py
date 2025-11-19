@@ -8,8 +8,9 @@ from flask_login import login_required, current_user
 from sqlalchemy import or_, and_, desc, func
 from datetime import datetime, timedelta
 
-from .models import db, User, Friend, FriendRequest, WorkoutRoutine, Workout, Exercise, BodyPart, RoutineStats
+from .models import db, User, Friend, FriendRequest, Block, WorkoutRoutine, Workout, Exercise, BodyPart, RoutineStats, TrackedExercise, StandardExercise, CustomExercise
 from sqlalchemy.orm import joinedload
+from .rate_limiter import rate_limit_strict, rate_limit_lenient
 
 friends_bp = Blueprint('friends', __name__, url_prefix='/friends')
 
@@ -36,6 +37,7 @@ def friends_page():
 
 @friends_bp.route('/api/search', methods=['GET'])
 @login_required
+@rate_limit_lenient(max_requests=50, time_window_seconds=60)
 def search_users():
     """Search for users by username or name"""
     try:
@@ -44,10 +46,20 @@ def search_users():
         if not query or len(query) < 2:
             return jsonify({'error': 'Search query must be at least 2 characters'}), 400
         
-        # Search users (exclude current user)
+        # Get blocked user IDs (users I blocked and users who blocked me)
+        blocked_by_me = db.session.query(Block.blocked_user_id).filter(
+            Block.user_id == current_user.user_id
+        ).all()
+        blocked_me = db.session.query(Block.user_id).filter(
+            Block.blocked_user_id == current_user.user_id
+        ).all()
+        blocked_ids = {b[0] for b in blocked_by_me}.union({b[0] for b in blocked_me})
+        
+        # Search users (exclude current user and blocked users)
         users = User.query.filter(
             and_(
                 User.user_id != current_user.user_id,
+                ~User.user_id.in_(blocked_ids) if blocked_ids else True,
                 or_(
                     User.username.ilike(f'%{query}%'),
                     User.first_name.ilike(f'%{query}%'),
@@ -83,16 +95,11 @@ def search_users():
             if user.profile_visibility == 'private' and user.user_id not in friend_ids:
                 continue
                 
-            user_data = {
-                'user_id': user.user_id,
-                'username': user.username,
-                'first_name': user.first_name,
-                'last_name': user.last_name,
-                'bio': user.bio if user.profile_visibility == 'public' or user.user_id in friend_ids else None,
-                'profile_picture_url': user.profile_picture_url,
-                'is_friend': user.user_id in friend_ids,
-                'has_pending_request': user.user_id in pending_ids
-            }
+            # Use serialization method to ensure consistent data minimization
+            user_data = user.to_search_dict(
+                is_friend=(user.user_id in friend_ids),
+                has_pending_request=(user.user_id in pending_ids)
+            )
             results.append(user_data)
         
         return jsonify({'users': results}), 200
@@ -126,6 +133,17 @@ def send_friend_request():
         # Can't send request to yourself
         if receiver_id == current_user.user_id:
             return jsonify({'error': 'Cannot send friend request to yourself'}), 400
+        
+        # Check if either user blocked the other
+        block_exists = Block.query.filter(
+            or_(
+                and_(Block.user_id == current_user.user_id, Block.blocked_user_id == receiver_id),
+                and_(Block.user_id == receiver_id, Block.blocked_user_id == current_user.user_id)
+            )
+        ).first()
+        
+        if block_exists:
+            return jsonify({'error': 'Cannot send friend request to blocked user'}), 403
         
         # Check if already friends
         existing_friendship = Friend.query.filter(
@@ -333,28 +351,36 @@ def cancel_friend_request(request_id):
 @friends_bp.route('/api/list', methods=['GET'])
 @login_required
 def get_friends_list():
-    """Get list of all friends for current user"""
+    """Get list of all friends for current user (excluding blocked users)"""
     try:
-        friendships = Friend.query.options(
+        # Get blocked user IDs (users I blocked and users who blocked me)
+        blocked_by_me = db.session.query(Block.blocked_user_id).filter(
+            Block.user_id == current_user.user_id
+        ).all()
+        blocked_me = db.session.query(Block.user_id).filter(
+            Block.blocked_user_id == current_user.user_id
+        ).all()
+        blocked_ids = {b[0] for b in blocked_by_me}.union({b[0] for b in blocked_me})
+        
+        query = Friend.query.options(
             joinedload(Friend.friend)
         ).filter(
             Friend.user_id == current_user.user_id
-        ).all()
+        )
+        
+        # Exclude blocked users
+        if blocked_ids:
+            query = query.filter(~Friend.friend_id.in_(blocked_ids))
+        
+        friendships = query.all()
         
         friends_data = []
         for friendship in friendships:
             friend = friendship.friend
-            friend_data = {
-                'friendship_id': friendship.friendship_id,
-                'user_id': friend.user_id,
-                'username': friend.username,
-                'first_name': friend.first_name,
-                'last_name': friend.last_name,
-                'bio': friend.bio,
-                'profile_picture_url': friend.profile_picture_url,
-                'profile_visibility': friend.profile_visibility,
-                'friends_since': friendship.created_at.isoformat() if friendship.created_at else None
-            }
+            # Use privacy-aware serialization - friends can see bio since they're already friends
+            friend_data = friend.to_friend_dict(requester_is_friend=True)
+            friend_data['friendship_id'] = friendship.friendship_id
+            friend_data['created_at'] = friendship.created_at.isoformat() if friendship.created_at else None
             friends_data.append(friend_data)
         
         return jsonify({'friends': friends_data}), 200
@@ -400,6 +426,98 @@ def remove_friend(friendship_id):
         return jsonify({'error': 'Failed to remove friend'}), 500
 
 
+@friends_bp.route('/api/block/<int:user_id>', methods=['POST'])
+@login_required
+@rate_limit_strict(max_requests=10, time_window_seconds=60)
+def block_user(user_id):
+    """Block a user"""
+    try:
+        # Can't block yourself
+        if user_id == current_user.user_id:
+            return jsonify({'error': 'Cannot block yourself'}), 400
+        
+        # Check if user exists
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Check if already blocked
+        existing_block = Block.query.filter(
+            and_(
+                Block.user_id == current_user.user_id,
+                Block.blocked_user_id == user_id
+            )
+        ).first()
+        
+        if existing_block:
+            return jsonify({'error': 'User is already blocked'}), 400
+        
+        # Remove friendship if exists (both directions)
+        Friend.query.filter(
+            or_(
+                and_(Friend.user_id == current_user.user_id, Friend.friend_id == user_id),
+                and_(Friend.user_id == user_id, Friend.friend_id == current_user.user_id)
+            )
+        ).delete()
+        
+        # Remove any pending friend requests
+        FriendRequest.query.filter(
+            or_(
+                and_(FriendRequest.sender_id == current_user.user_id, FriendRequest.receiver_id == user_id),
+                and_(FriendRequest.sender_id == user_id, FriendRequest.receiver_id == current_user.user_id)
+            )
+        ).delete()
+        
+        # Create block
+        block = Block(
+            user_id=current_user.user_id,
+            blocked_user_id=user_id
+        )
+        
+        db.session.add(block)
+        db.session.commit()
+        
+        current_app.logger.info(f"User {current_user.user_id} blocked user {user_id}")
+        
+        return jsonify({
+            'message': 'User blocked successfully',
+            'block': block.to_dict()
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error blocking user: {e}")
+        return jsonify({'error': 'Failed to block user'}), 500
+
+
+@friends_bp.route('/api/block/<int:user_id>', methods=['DELETE'])
+@login_required
+def unblock_user(user_id):
+    """Unblock a user"""
+    try:
+        block = Block.query.filter(
+            and_(
+                Block.user_id == current_user.user_id,
+                Block.blocked_user_id == user_id
+            )
+        ).first()
+        
+        if not block:
+            return jsonify({'error': 'User is not blocked'}), 404
+        
+        db.session.delete(block)
+        db.session.commit()
+        
+        current_app.logger.info(f"User {current_user.user_id} unblocked user {user_id}")
+        
+        return jsonify({'message': 'User unblocked successfully'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error unblocking user: {e}")
+        return jsonify({'error': 'Failed to unblock user'}), 500
+
+
 # ===================================
 # FRIEND PROFILE & DATA
 # ===================================
@@ -414,6 +532,17 @@ def get_friend_profile(user_id):
         if not user:
             return jsonify({'error': 'User not found'}), 404
         
+        # Check if either user blocked the other
+        block_exists = Block.query.filter(
+            or_(
+                and_(Block.user_id == current_user.user_id, Block.blocked_user_id == user_id),
+                and_(Block.user_id == user_id, Block.blocked_user_id == current_user.user_id)
+            )
+        ).first()
+        
+        if block_exists:
+            return jsonify({'error': 'Cannot view profile of blocked user'}), 403
+        
         # Check if they're friends
         is_friend = Friend.query.filter(
             Friend.user_id == current_user.user_id,
@@ -424,40 +553,208 @@ def get_friend_profile(user_id):
         if user.profile_visibility == 'private' and not is_friend:
             return jsonify({'error': 'This profile is private'}), 403
         
-        # Basic profile data
-        profile_data = {
-            'user_id': user.user_id,
-            'username': user.username,
-            'first_name': user.first_name,
-            'last_name': user.last_name,
-            'bio': user.bio,
-            'profile_picture_url': user.profile_picture_url,
-            'profile_visibility': user.profile_visibility,
-            'is_friend': is_friend
-        }
+        # Use privacy-aware serialization method
+        profile_data = user.to_friend_dict(requester_is_friend=is_friend)
+        profile_data['is_friend'] = is_friend
         
-        # Add extended data for friends
+        # Add extended data (best lift stats) only if user allows sharing with friends AND requester is a friend
         if is_friend and user.show_stats_to_friends:
-            # Get workout stats
-            stats = db.session.execute(
-                db.text("""
-                    SELECT * FROM UserWorkoutStats 
-                    WHERE user_id = :user_id
-                """),
-                {'user_id': user_id}
-            ).fetchone()
+            # Get best lift stats for the Big 3: Bench Press, Squat, Deadlift
+            best_lifts = []
             
-            if stats:
-                profile_data['stats'] = {
-                    'total_workouts': stats[4],
-                    'total_workout_days': stats[5],
-                    'total_exercises_logged': stats[6],
-                    'total_sets': stats[7],
-                    'total_volume_lbs': float(stats[8]) if stats[8] else 0,
-                    'first_workout_date': stats[9].isoformat() if stats[9] else None,
-                    'last_workout_date': stats[10].isoformat() if stats[10] else None,
-                    'total_routines_created': stats[11]
-                }
+            # Define the Big 3 exercises to track with their display names and search variations
+            big_3_config = [
+                {'display': 'Bench Press', 'patterns': ['Bench Press', 'Bench']},
+                {'display': 'Squat', 'patterns': ['Squat', 'Squats']},
+                {'display': 'Deadlift', 'patterns': ['Deadlift', 'Deadlifts']}
+            ]
+            
+            for exercise_config in big_3_config:
+                target_exercise = exercise_config['display']
+                search_patterns = exercise_config['patterns']
+                
+                # Find max weight for this exercise across all sources and variations
+                max_weight_result = None
+                matched_exercise_name = None
+                matched_pattern = None
+                
+                # Try exact matches first, then pattern matches
+                for pattern in search_patterns:
+                    # First try exact match (case-insensitive)
+                    result = db.session.query(
+                        func.max(Exercise.weight).label('max_weight')
+                    ).outerjoin(
+                        StandardExercise,
+                        Exercise.standard_exercise_id == StandardExercise.standard_exercise_id
+                    ).outerjoin(
+                        CustomExercise,
+                        Exercise.custom_exercise_id == CustomExercise.custom_exercise_id
+                    ).filter(
+                        Exercise.user_id == user_id,
+                        Exercise.exercise_type == 'strength',
+                        Exercise.weight.isnot(None),
+                        or_(
+                            func.lower(StandardExercise.exercise_name) == pattern.lower(),
+                            func.lower(CustomExercise.exercise_name) == pattern.lower(),
+                            func.lower(Exercise.exercise_name) == pattern.lower()
+                        )
+                    ).first()
+                    
+                    # If no exact match, try pattern match (contains)
+                    if not result or not result.max_weight:
+                        result = db.session.query(
+                            func.max(Exercise.weight).label('max_weight')
+                        ).outerjoin(
+                            StandardExercise,
+                            Exercise.standard_exercise_id == StandardExercise.standard_exercise_id
+                        ).outerjoin(
+                            CustomExercise,
+                            Exercise.custom_exercise_id == CustomExercise.custom_exercise_id
+                        ).filter(
+                            Exercise.user_id == user_id,
+                            Exercise.exercise_type == 'strength',
+                            Exercise.weight.isnot(None),
+                            or_(
+                                func.lower(StandardExercise.exercise_name).like(f'%{pattern.lower()}%'),
+                                func.lower(CustomExercise.exercise_name).like(f'%{pattern.lower()}%'),
+                                func.lower(Exercise.exercise_name).like(f'%{pattern.lower()}%')
+                            )
+                        ).first()
+                    
+                    if result and result.max_weight:
+                        # Found a match - get the actual exercise name used
+                        pr_exercise = db.session.query(Exercise).outerjoin(
+                            StandardExercise,
+                            Exercise.standard_exercise_id == StandardExercise.standard_exercise_id
+                        ).outerjoin(
+                            CustomExercise,
+                            Exercise.custom_exercise_id == CustomExercise.custom_exercise_id
+                        ).filter(
+                            Exercise.user_id == user_id,
+                            Exercise.exercise_type == 'strength',
+                            Exercise.weight == result.max_weight,
+                            or_(
+                                func.lower(StandardExercise.exercise_name).like(f'%{pattern.lower()}%'),
+                                func.lower(CustomExercise.exercise_name).like(f'%{pattern.lower()}%'),
+                                func.lower(Exercise.exercise_name).like(f'%{pattern.lower()}%')
+                            )
+                        ).order_by(Exercise.date.desc()).first()
+                        
+                        if pr_exercise:
+                            matched_exercise_name = pr_exercise.get_exercise_name()
+                            max_weight_result = result
+                            matched_pattern = pattern
+                            break  # Found best match for this exercise
+                
+                if max_weight_result and max_weight_result.max_weight and matched_exercise_name and matched_pattern:
+                    # Get the date for this PR using the matched pattern
+                    pr_exercise_for_date = db.session.query(Exercise).outerjoin(
+                        StandardExercise,
+                        Exercise.standard_exercise_id == StandardExercise.standard_exercise_id
+                    ).outerjoin(
+                        CustomExercise,
+                        Exercise.custom_exercise_id == CustomExercise.custom_exercise_id
+                    ).filter(
+                        Exercise.user_id == user_id,
+                        Exercise.exercise_type == 'strength',
+                        Exercise.weight == max_weight_result.max_weight,
+                        or_(
+                            func.lower(StandardExercise.exercise_name).like(f'%{matched_pattern.lower()}%'),
+                            func.lower(CustomExercise.exercise_name).like(f'%{matched_pattern.lower()}%'),
+                            func.lower(Exercise.exercise_name).like(f'%{matched_pattern.lower()}%')
+                        )
+                    ).order_by(Exercise.date.desc()).first()
+                    
+                    pr_date = pr_exercise_for_date.date if pr_exercise_for_date and pr_exercise_for_date.date else None
+                    
+                    best_lifts.append({
+                        'exercise_name': matched_exercise_name or target_exercise,
+                        'max_weight': float(max_weight_result.max_weight),
+                        'date': pr_date.isoformat() if pr_date else None
+                    })
+            
+            current_app.logger.debug(f"Calculated {len(best_lifts)} best lifts (Big 3) for user {user_id}")
+            profile_data['best_lifts'] = best_lifts
+            
+            # Get recent PRs (personal records) - up to 6 most recent
+            recent_prs = []
+            
+            # Get recent exercises (last 30 days) ordered by date descending
+            thirty_days_ago = datetime.now() - timedelta(days=30)
+            
+            recent_exercises = db.session.query(Exercise).options(
+                joinedload(Exercise.standard_exercise),
+                joinedload(Exercise.custom_exercise)
+            ).filter(
+                Exercise.user_id == user_id,
+                Exercise.date >= thirty_days_ago.date(),
+                Exercise.exercise_type == 'strength',
+                Exercise.weight.isnot(None)
+            ).order_by(Exercise.date.desc(), Exercise.weight.desc()).limit(20).all()  # Get more to filter PRs
+            
+            # Check each recent exercise to see if it's a PR
+            for ex in recent_exercises:
+                exercise_name = ex.get_exercise_name()
+                
+                # Check if this weight beats previous max for this exercise
+                if ex.standard_exercise_id:
+                    max_before = db.session.query(func.max(Exercise.weight)).filter(
+                        Exercise.user_id == user_id,
+                        Exercise.standard_exercise_id == ex.standard_exercise_id,
+                        Exercise.date < ex.date,
+                        Exercise.exercise_type == 'strength',
+                        Exercise.weight.isnot(None)
+                    ).scalar()
+                elif ex.custom_exercise_id:
+                    max_before = db.session.query(func.max(Exercise.weight)).filter(
+                        Exercise.user_id == user_id,
+                        Exercise.custom_exercise_id == ex.custom_exercise_id,
+                        Exercise.date < ex.date,
+                        Exercise.exercise_type == 'strength',
+                        Exercise.weight.isnot(None)
+                    ).scalar()
+                else:
+                    # Fallback to exercise_name matching
+                    max_before = db.session.query(func.max(Exercise.weight)).outerjoin(
+                        StandardExercise,
+                        Exercise.standard_exercise_id == StandardExercise.standard_exercise_id
+                    ).outerjoin(
+                        CustomExercise,
+                        Exercise.custom_exercise_id == CustomExercise.custom_exercise_id
+                    ).filter(
+                        Exercise.user_id == user_id,
+                        Exercise.date < ex.date,
+                        Exercise.exercise_type == 'strength',
+                        Exercise.weight.isnot(None),
+                        or_(
+                            StandardExercise.exercise_name == exercise_name,
+                            CustomExercise.exercise_name == exercise_name,
+                            Exercise.exercise_name == exercise_name
+                        )
+                    ).scalar()
+                
+                # If no previous max or this weight beats it, it's a PR
+                if max_before is None or (ex.weight and float(ex.weight) > float(max_before)):
+                    # Check if we already have a PR for this exercise (avoid duplicates)
+                    if not any(pr['exercise_name'] == exercise_name and pr['date'] == ex.date.isoformat() for pr in recent_prs):
+                        recent_prs.append({
+                            'exercise_name': exercise_name,
+                            'weight': float(ex.weight),
+                            'date': ex.date.isoformat() if ex.date else None
+                        })
+                        
+                        if len(recent_prs) >= 6:  # Limit to 6 most recent PRs
+                            break
+            
+            current_app.logger.debug(f"Calculated {len(recent_prs)} recent PRs for user {user_id}")
+            profile_data['recent_prs'] = recent_prs
+        else:
+            # Log why best_lifts aren't being included
+            if not is_friend:
+                current_app.logger.debug(f"Not including best_lifts - users are not friends (requester: {current_user.user_id}, target: {user_id})")
+            elif not user.show_stats_to_friends:
+                current_app.logger.debug(f"Not including best_lifts - user {user_id} has show_stats_to_friends disabled")
+            # Don't set best_lifts at all if conditions aren't met
         
         return jsonify({'profile': profile_data}), 200
         
@@ -509,23 +806,34 @@ def get_friend_routines(user_id):
                 WorkoutRoutine.is_deleted == False
             )
         
-        routines = routines_query.order_by(desc(WorkoutRoutine.created_at)).all()
+        # Eager load stats and check imports efficiently to avoid N+1 queries
+        from sqlalchemy.orm import joinedload
+        routines = routines_query.options(
+            joinedload(WorkoutRoutine.stats)
+        ).order_by(desc(WorkoutRoutine.created_at)).all()
         
         current_app.logger.info(f"📊 Found {len(routines)} routines for user {user_id}")
+        
+        # Pre-fetch all routine IDs and check imports in batch
+        routine_ids = [r.routine_id for r in routines]
+        routine_names = {r.routine_id: r.routine_name for r in routines}
+        
+        # Batch check for already imported routines
+        imported_routines = WorkoutRoutine.query.filter(
+                WorkoutRoutine.user_id == current_user.user_id,
+                WorkoutRoutine.imported_from_user_id == user_id,
+                WorkoutRoutine.is_deleted == False
+        ).all()
+        imported_names = {r.routine_name for r in imported_routines}
         
         routines_data = []
         for routine in routines:
             current_app.logger.info(f"  📝 Processing routine: {routine.routine_name}, Exercises: {len(routine.exercises)}")
-            # Get public stats for this routine
-            routine_stats = RoutineStats.query.filter_by(routine_id=routine.routine_id).first()
+            # Get public stats for this routine (eager loaded)
+            routine_stats = routine.stats if hasattr(routine, 'stats') and routine.stats else None
             
-            # Check if current user has already imported this routine
-            already_imported = WorkoutRoutine.query.filter(
-                WorkoutRoutine.user_id == current_user.user_id,
-                WorkoutRoutine.imported_from_user_id == user_id,
-                WorkoutRoutine.routine_name == routine.routine_name,
-                WorkoutRoutine.is_deleted == False
-            ).first() is not None
+            # Check if current user has already imported this routine (from batch check)
+            already_imported = routine.routine_name in imported_names
             
             routine_dict = {
                 'routine_id': routine.routine_id,
@@ -533,8 +841,7 @@ def get_friend_routines(user_id):
                 'description': routine.description,
                 'visibility': routine.visibility,
                 'created_at': routine.created_at.isoformat() if routine.created_at else None,
-                'creator_username': user.username,
-                'creator_name': f"{user.first_name} {user.last_name}".strip(),
+                # Removed creator_username and creator_name - not used by frontend and reduces data exposure
                 'already_imported_by_user': already_imported,
                 'exercises': [],
                 # Add public stats (visible to everyone viewing)
@@ -665,17 +972,27 @@ def get_friends_activity_feed():
             {'friend_ids': tuple(friend_ids), 'since_date': seven_days_ago}
         ).fetchall()
         
+        # Batch fetch user privacy settings to avoid N+1 queries
+        activity_user_ids = [activity[1] for activity in activities]
+        friend_settings = db.session.query(
+            User.user_id,
+            User.show_workouts_to_friends
+        ).filter(
+            User.user_id.in_(activity_user_ids)
+        ).all()
+        allowed_user_ids = {user_id for user_id, show_workouts in friend_settings if show_workouts}
+        
         activities_data = []
         for activity in activities:
-            # Check if friend allows showing workouts
-            friend = User.query.get(activity[1])
-            if not friend or not friend.show_workouts_to_friends:
+            # Check if friend allows showing workouts (from batch check)
+            if activity[1] not in allowed_user_ids:
                 continue
             
+            # Return only fields needed for activity feed display
+            # Note: username removed as it's not used by frontend (only first_name/last_name for display)
             activity_dict = {
                 'workout_id': activity[0],
                 'user_id': activity[1],
-                'username': activity[2],
                 'first_name': activity[3],
                 'last_name': activity[4],
                 'workout_date': activity[5].isoformat() if activity[5] else None,

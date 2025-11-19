@@ -124,6 +124,47 @@ const RoutineUtils = (function() {
         return str.substring(0, maxLength) + '...';
     }
     
+    /**
+     * Check if in development/debug mode
+     * @returns {boolean} True if in development mode
+     */
+    function isDevelopment() {
+        // Check for development mode via hostname or environment
+        return window.location.hostname === 'localhost' || 
+               window.location.hostname === '127.0.0.1' ||
+               window.location.hostname.includes('localhost');
+    }
+    
+    /**
+     * Production-safe console wrapper
+     * Only logs in development mode
+     */
+    const logger = {
+        log: function(...args) {
+            if (isDevelopment()) {
+                console.log(...args);
+            }
+        },
+        debug: function(...args) {
+            if (isDevelopment()) {
+                console.debug(...args);
+            }
+        },
+        info: function(...args) {
+            if (isDevelopment()) {
+                console.info(...args);
+            }
+        },
+        warn: function(...args) {
+            // Warnings are logged in production too
+            console.warn(...args);
+        },
+        error: function(...args) {
+            // Errors are always logged
+            console.error(...args);
+        }
+    };
+    
     // Public API
     return {
         formatDateForInput,
@@ -135,12 +176,15 @@ const RoutineUtils = (function() {
         scrollToElement,
         deepClone,
         capitalize,
-        truncate
+        truncate,
+        isDevelopment,
+        logger
     };
 })();
 
 // Make available globally
 window.RoutineUtils = RoutineUtils;
+
 
 
 
